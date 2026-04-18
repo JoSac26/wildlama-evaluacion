@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect } from "react";
 
 const C={bg:"#1a1a1a",surface:"#242424",surface2:"#2e2e2e",border:"#3a3a3a",primary:"#e8671a",primaryLight:"#3d2010",text:"#f0f0f0",textMuted:"#999",textDim:"#555",successBg:"#1a2e1a",warning:"#f57f17",warningBg:"#2e2200",error:"#c62828",errorBg:"#2e1a1a"};
