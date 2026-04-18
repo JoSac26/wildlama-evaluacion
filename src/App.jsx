@@ -881,7 +881,7 @@ export default function App(){
                         <span style={{fontSize:11,color:C.textMuted,width:100,flexShrink:0}}>{v.tienda}</span>
                         <span style={{fontSize:11,color:C.textDim,width:65,flexShrink:0}}>{v.meses.length} prueba(s)</span>
                         <div style={{background:pBg(Number(v.prom)),borderRadius:7,padding:"3px 10px",fontWeight:700,fontSize:13,color:pColor(Number(v.prom))}}>{v.prom}/10</div>
-                        <span style={{fontSize:12,color:C.textDim}}>></span>
+                        <span style={{fontSize:12,color:C.textDim}}>{">"}</span>
                       </div>
                     ))}
                   </div>
@@ -957,11 +957,3 @@ export default function App(){
     );
   }
 }
-
-
-
-
-
-
-
-
