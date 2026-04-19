@@ -115,8 +115,8 @@ const PRUEBA_DEFAULT={
 
 const SK="wl_resultados_prueba",PK="wl_prueba_config",TK="wl_tiendas";
 const WK="wl_trabajadores",EK="wl_embajadores",FK="wl_feedback",RK="wl_refuerzo";
-const PMK="wl_pruebas_mensuales";
-const ADMIN_PASS="wildlama2026",EMB_PASS="embajador2026";
+const PMK="wl_pruebas_mensuales",CK="wl_contrasenas";
+const ADMIN_PASS_DEFAULT="wildlama2026",EMB_PASS_DEFAULT="embajador2026";
 
 const SUPABASE_URL="https://mmumkccyernmsgoohdvx.supabase.co";
 const SUPABASE_KEY="sb_publishable_KmQSDiCkweEswcaoCPbG4A_oEhfhTRl";
@@ -153,6 +153,14 @@ const safeArr=(v)=>Array.isArray(v)?v:[];
 const ss=(mb=0)=>({width:"100%",padding:"10px 12px",borderRadius:8,border:"1px solid "+C.border,fontSize:14,boxSizing:"border-box",background:C.surface2,color:C.text,marginBottom:mb});
 const bP={background:C.primary,color:"#fff",border:"none",borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer",width:"100%",marginBottom:12};
 const bEmb={background:"transparent",color:C.primary,border:"2px solid "+C.primary,borderRadius:10,padding:"13px 0",fontSize:15,fontWeight:700,cursor:"pointer",width:"100%"};
+
+function ToastGuardado({msg}){
+  return(
+    <div style={{position:"fixed",bottom:24,right:24,background:"#1a3a1a",border:"1px solid #4caf50",borderRadius:10,padding:"12px 20px",color:"#4caf50",fontWeight:700,fontSize:14,zIndex:9999,boxShadow:"0 4px 16px #0006"}}>
+      ok {msg||"Guardado correctamente"}
+    </div>
+  );
+}
 
 let xlsxReady=false;
 function loadXLSX(cb){
@@ -380,15 +388,21 @@ export default function App(){
   const [guardandoFb,setGuardandoFb]=useState(false);
   const [mesVendedor,setMesVendedor]=useState("borrador");
   const [vendedorDetalle,setVendedorDetalle]=useState(null);
+  const [toast,setToast]=useState(null);
+  const [contrasenas,setContrasenas]=useState({admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});
+  const [passForm,setPassForm]=useState({adminActual:"",adminNueva:"",adminConfirm:"",embNueva:"",embConfirm:""});
+  const [passMsg,setPassMsg]=useState({admin:"",emb:""});
+
+  const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
 
   useEffect(()=>{
-    Promise.all([ld(PK,PRUEBA_DEFAULT),ld(TK,TIENDAS_DEFAULT),ld(WK,TRABAJADORES_DEFAULT),ld(EK,EMBAJADORES_DEFAULT),ld(FK,{}),ld(RK,{}),ld(SK,{}),ld(PMK,{})])
-    .then(([p,t,tr,em,fb,rf,res,pm])=>{
+    Promise.all([ld(PK,PRUEBA_DEFAULT),ld(TK,TIENDAS_DEFAULT),ld(WK,TRABAJADORES_DEFAULT),ld(EK,EMBAJADORES_DEFAULT),ld(FK,{}),ld(RK,{}),ld(SK,{}),ld(PMK,{}),ld(CK,{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT})])
+    .then(([p,t,tr,em,fb,rf,res,pm,cp])=>{
       setPrueba(p);setTiendas(t);setTrabajadores(tr);setEmbajadores(em);setFeedbacks(fb);setRefuerzos(rf);
       let sr={};
       if(Array.isArray(res)){sr={borrador:res};}
       else if(res&&typeof res==="object"){Object.entries(res).forEach(([k,v])=>{sr[k]=Array.isArray(v)?v:[];});}
-      setResultados(sr);setPruebasMes(pm);setLoading(false);
+      setResultados(sr);setPruebasMes(pm);setContrasenas(cp||{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});setLoading(false);
     });
   },[]);
 
@@ -419,22 +433,39 @@ export default function App(){
     setGuardando(true);const r=buildRes();await saveRes(r);setPuntaje(r.puntaje);setGuardando(false);setVista("resultado");
   };
 
-  const abrirAdmin=(pass)=>{if(pass!==ADMIN_PASS){setAdminError(true);return;}setVista("admin");};
-  const abrirEmb=(pass)=>{if(pass!==EMB_PASS){setEmbError(true);return;}setVista("embajador");};
-  const guardarRF=async(n,v)=>{const key=mkKey(n,v);setGuardandoRF(key);const nr={...refuerzos,[key]:refuerzoEdit[key]||""};await sg(RK,nr);setRefuerzos(nr);setGuardandoRF(null);};
-  const guardarFb=async(n,v)=>{setGuardandoFb(true);const key=mkKey(n,v);const nr={...feedbacks,[key]:{...fbForm,fecha:new Date().toLocaleString("es-CL"),embajador:embNombre}};await sg(FK,nr);setFeedbacks(nr);setGuardandoFb(false);setFbAbierto(null);};
-  const guardarPrueba=async()=>{setGuardandoPrueba(true);if(mesActivo==="borrador"){await sg(PK,editPrueba);setPrueba(editPrueba);}else{const n={...pruebasMes,[mesActivo]:editPrueba};await sg(PMK,n);setPruebasMes(n);}setGuardandoPrueba(false);alert("Guardado.");};
+  const abrirAdmin=(pass)=>{if(pass!==contrasenas.admin){setAdminError(true);return;}setVista("admin");};
+  const abrirEmb=(pass)=>{if(pass!==contrasenas.embajador){setEmbError(true);return;}setVista("embajador");};
+  const guardarRF=async(n,v)=>{const key=mkKey(n,v);setGuardandoRF(key);const nr={...refuerzos,[key]:refuerzoEdit[key]||""};await sg(RK,nr);setRefuerzos(nr);setGuardandoRF(null);showToast("Puntos a reforzar guardados");};
+  const guardarFb=async(n,v)=>{setGuardandoFb(true);const key=mkKey(n,v);const nr={...feedbacks,[key]:{...fbForm,fecha:new Date().toLocaleString("es-CL"),embajador:embNombre}};await sg(FK,nr);setFeedbacks(nr);setGuardandoFb(false);setFbAbierto(null);showToast("Feedback guardado");};
+  const guardarPrueba=async()=>{setGuardandoPrueba(true);if(mesActivo==="borrador"){await sg(PK,editPrueba);setPrueba(editPrueba);}else{const n={...pruebasMes,[mesActivo]:editPrueba};await sg(PMK,n);setPruebasMes(n);}setGuardandoPrueba(false);showToast("Prueba guardada");};
   const trabPorTienda=tiendas.reduce((acc,t)=>{acc[t]=trabajadores.filter(w=>w.tienda===t);return acc;},{});
   const globalPorTienda=()=>{const map={};mesesConDatos.forEach(m=>{mesArr(m.id).forEach(r=>{if(!map[r.tienda])map[r.tienda]={tienda:r.tienda,pts:[],count:0};map[r.tienda].pts.push(r.puntaje);map[r.tienda].count++;});});return Object.values(map).map(t=>({...t,prom:(t.pts.reduce((a,b)=>a+b,0)/t.pts.length).toFixed(1)})).sort((a,b)=>b.prom-a.prom);};
   const globalPorVendedor=()=>{const map={};mesesConDatos.forEach(m=>{mesArr(m.id).forEach(r=>{if(!map[r.nombre])map[r.nombre]={nombre:r.nombre,tienda:r.tienda,pts:[],meses:[]};map[r.nombre].pts.push(r.puntaje);map[r.nombre].meses.push(m.label);});});return Object.values(map).map(v=>({...v,prom:(v.pts.reduce((a,b)=>a+b,0)/v.pts.length).toFixed(1)})).sort((a,b)=>b.prom-a.prom);};
   const updatePQ=(id,f,v)=>setEditPrueba(p=>({...p,preguntas:p.preguntas.map(q=>q.id===id?{...q,[f]:v}:q)}));
   const updateOp=(id,idx,v)=>setEditPrueba(p=>({...p,preguntas:p.preguntas.map(q=>{if(q.id!==id)return q;const ops=[...(q.opciones||[])];ops[idx]=v;return{...q,opciones:ops};})}));
-  const agregarTienda=async()=>{if(!nuevaTienda.trim()||tiendas.includes(nuevaTienda.trim()))return;const n=[...tiendas,nuevaTienda.trim()].sort();setTiendas(n);await sg(TK,n);setNuevaTienda("");};
-  const eliminarTienda=async(t)=>{if(!confirm("Eliminar "+t+"?"))return;const n=tiendas.filter(x=>x!==t);const nt=trabajadores.filter(w=>w.tienda!==t);setTiendas(n);setTrabajadores(nt);await sg(TK,n);await sg(WK,nt);};
-  const agregarTrab=async(tt)=>{if(!nuevoTrab.nombre.trim())return;const n=[...trabajadores,{nombre:nuevoTrab.nombre.trim(),tienda:tt}];setTrabajadores(n);await sg(WK,n);setNuevoTrab({nombre:"",tienda:tt});};
-  const eliminarTrab=async(idx)=>{const n=trabajadores.filter((_,i)=>i!==idx);setTrabajadores(n);await sg(WK,n);};
-  const agregarEmb=async()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...embajadores,{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbajadores(n);await sg(EK,n);setNuevoEmb({nombre:"",tienda:""});};
-  const eliminarEmb=async(idx)=>{const n=embajadores.filter((_,i)=>i!==idx);setEmbajadores(n);await sg(EK,n);};
+  const agregarTienda=async()=>{if(!nuevaTienda.trim()||tiendas.includes(nuevaTienda.trim()))return;const n=[...tiendas,nuevaTienda.trim()].sort();setTiendas(n);await sg(TK,n);setNuevaTienda("");showToast("Tienda agregada");};
+  const eliminarTienda=async(t)=>{if(!confirm("Eliminar "+t+"?"))return;const n=tiendas.filter(x=>x!==t);const nt=trabajadores.filter(w=>w.tienda!==t);setTiendas(n);setTrabajadores(nt);await sg(TK,n);await sg(WK,nt);showToast("Tienda eliminada");};
+  const agregarTrab=async(tt)=>{if(!nuevoTrab.nombre.trim())return;const n=[...trabajadores,{nombre:nuevoTrab.nombre.trim(),tienda:tt}];setTrabajadores(n);await sg(WK,n);setNuevoTrab({nombre:"",tienda:tt});showToast("Vendedor agregado");};
+  const eliminarTrab=async(idx)=>{const n=trabajadores.filter((_,i)=>i!==idx);setTrabajadores(n);await sg(WK,n);showToast("Vendedor eliminado");};
+  const agregarEmb=async()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...embajadores,{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbajadores(n);await sg(EK,n);setNuevoEmb({nombre:"",tienda:""});showToast("Embajador agregado");};
+  const eliminarEmb=async(idx)=>{const n=embajadores.filter((_,i)=>i!==idx);setEmbajadores(n);await sg(EK,n);showToast("Embajador eliminado");};
+
+  const cambiarPassAdmin=async()=>{
+    if(passForm.adminActual!==contrasenas.admin){setPassMsg(m=>({...m,admin:"Contrasena actual incorrecta."}));return;}
+    if(passForm.adminNueva.length<4){setPassMsg(m=>({...m,admin:"La nueva contrasena debe tener al menos 4 caracteres."}));return;}
+    if(passForm.adminNueva!==passForm.adminConfirm){setPassMsg(m=>({...m,admin:"Las contrasenas no coinciden."}));return;}
+    const nc={...contrasenas,admin:passForm.adminNueva};
+    await sg(CK,nc);setContrasenas(nc);setPassForm(f=>({...f,adminActual:"",adminNueva:"",adminConfirm:""}));
+    setPassMsg(m=>({...m,admin:""}));showToast("Contrasena admin actualizada");
+  };
+
+  const cambiarPassEmb=async()=>{
+    if(passForm.embNueva.length<4){setPassMsg(m=>({...m,emb:"La nueva contrasena debe tener al menos 4 caracteres."}));return;}
+    if(passForm.embNueva!==passForm.embConfirm){setPassMsg(m=>({...m,emb:"Las contrasenas no coinciden."}));return;}
+    const nc={...contrasenas,embajador:passForm.embNueva};
+    await sg(CK,nc);setContrasenas(nc);setPassForm(f=>({...f,embNueva:"",embConfirm:""}));
+    setPassMsg(m=>({...m,emb:""}));showToast("Contrasena embajador actualizada");
+  };
 
   if(loading)return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>🦙</div>;
 
@@ -442,6 +473,7 @@ export default function App(){
     const mesesDisp=MESES.filter(m=>m.id==="borrador"||(pruebasMes[m.id]&&pruebasMes[m.id].preguntas?.length>0));
     return(
       <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif",position:"relative"}}>
+        {toast&&<ToastGuardado msg={toast}/>}
         <button onClick={()=>setVista("adminLogin")} style={{position:"absolute",top:20,right:20,background:C.surface,border:"1px solid "+C.border,borderRadius:10,padding:"10px 12px",cursor:"pointer",fontSize:18,color:C.textMuted}}>&#9881;</button>
         <div style={{background:C.surface,borderRadius:20,padding:36,maxWidth:460,width:"100%",boxShadow:"0 8px 32px #0008"}}>
           <div style={{fontSize:48,textAlign:"center",marginBottom:8}}>🦙</div>
@@ -558,6 +590,7 @@ export default function App(){
     const resFilt=filtroVT==="Todas"?restienda:restienda.filter(r=>r.version===filtroVT);
     return(
       <div style={{minHeight:"100vh",background:C.bg,padding:"24px 16px",fontFamily:"sans-serif"}}>
+        {toast&&<ToastGuardado msg={toast}/>}
         <div style={{maxWidth:760,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
             <div><h1 style={{margin:0,color:C.text}}>&#11088; {embTienda}</h1><p style={{margin:0,color:C.textMuted,fontSize:14}}>Hola, {embNombre}</p></div>
@@ -621,9 +654,10 @@ export default function App(){
     const mesRes=mesArr(mesActivo).filter(r=>filtroTienda==="Todas"||r.tienda===filtroTienda);
     const mesPrueba=mesActivo==="borrador"?prueba:(pruebasMes[mesActivo]||null);
     const stats=getStats(mesRes,mesPrueba);
-    const SBBtn=({tab,sec,label})=>(<button onClick={()=>{setAdminSec(sec);setAdminTab(tab);if(tab==="menu"||tab==="global")setMesActivo(null);}} style={{textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:adminTab===tab&&adminSec===sec?C.primaryLight:"transparent",color:adminTab===tab&&adminSec===sec?C.primary:C.textMuted,cursor:"pointer",fontSize:13,marginBottom:2,width:"100%"}}>{label}</button>);
+    const SBBtn=({tab,sec,label})=>(<button onClick={()=>{setAdminSec(sec);setAdminTab(tab);if(tab==="menu"||tab==="global"||tab==="contrasenas")setMesActivo(null);}} style={{textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:adminTab===tab&&adminSec===sec?C.primaryLight:"transparent",color:adminTab===tab&&adminSec===sec?C.primary:C.textMuted,cursor:"pointer",fontSize:13,marginBottom:2,width:"100%"}}>{label}</button>);
     return(
       <div style={{minHeight:"100vh",background:C.bg,fontFamily:"sans-serif",display:"flex"}}>
+        {toast&&<ToastGuardado msg={toast}/>}
         <div style={{width:220,background:C.surface,borderRight:"1px solid "+C.border,padding:"20px 12px",display:"flex",flexDirection:"column",gap:2,flexShrink:0}}>
           <div style={{fontSize:22,marginBottom:2}}>🦙</div>
           <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:2}}>Panel Admin</div>
@@ -634,10 +668,33 @@ export default function App(){
           <div style={{fontSize:10,fontWeight:700,color:C.primary,textTransform:"uppercase",letterSpacing:1.5,marginBottom:6,marginTop:16}}>Equipo</div>
           <SBBtn tab="tiendas" sec="equipo" label="Tiendas y vendedores"/>
           <SBBtn tab="embajadores" sec="equipo" label="Embajadores"/>
+          <div style={{fontSize:10,fontWeight:700,color:C.primary,textTransform:"uppercase",letterSpacing:1.5,marginBottom:6,marginTop:16}}>Configuracion</div>
+          <SBBtn tab="contrasenas" sec="config" label="Contrasenas"/>
           <div style={{flex:1}}/>
           <button onClick={()=>setVista("inicio")} style={{textAlign:"left",padding:"8px 12px",borderRadius:8,border:"none",background:"transparent",color:C.textDim,cursor:"pointer",fontSize:12}}>Salir</button>
         </div>
         <div style={{flex:1,padding:"28px 24px",overflowY:"auto"}}>
+
+          {adminSec==="config"&&adminTab==="contrasenas"&&(
+            <div>
+              <h2 style={{color:C.text,marginTop:0,marginBottom:20}}>Cambiar contrasenas</h2>
+              <div style={{background:C.surface,borderRadius:14,padding:22,marginBottom:16,border:"1px solid "+C.border}}>
+                <h3 style={{color:C.text,marginTop:0,fontSize:14,marginBottom:16}}>Contrasena Admin</h3>
+                <input type="password" value={passForm.adminActual} onChange={e=>setPassForm(f=>({...f,adminActual:e.target.value}))} placeholder="Contrasena actual" style={{...ss(10)}}/>
+                <input type="password" value={passForm.adminNueva} onChange={e=>setPassForm(f=>({...f,adminNueva:e.target.value}))} placeholder="Nueva contrasena" style={{...ss(10)}}/>
+                <input type="password" value={passForm.adminConfirm} onChange={e=>setPassForm(f=>({...f,adminConfirm:e.target.value}))} placeholder="Confirmar nueva contrasena" style={{...ss(12)}}/>
+                {passMsg.admin&&<p style={{color:C.error,fontSize:13,marginBottom:10}}>{passMsg.admin}</p>}
+                <button onClick={cambiarPassAdmin} style={{...bP,marginBottom:0}}>Actualizar contrasena admin</button>
+              </div>
+              <div style={{background:C.surface,borderRadius:14,padding:22,border:"1px solid "+C.border}}>
+                <h3 style={{color:C.text,marginTop:0,fontSize:14,marginBottom:16}}>Contrasena Embajadores</h3>
+                <input type="password" value={passForm.embNueva} onChange={e=>setPassForm(f=>({...f,embNueva:e.target.value}))} placeholder="Nueva contrasena" style={{...ss(10)}}/>
+                <input type="password" value={passForm.embConfirm} onChange={e=>setPassForm(f=>({...f,embConfirm:e.target.value}))} placeholder="Confirmar nueva contrasena" style={{...ss(12)}}/>
+                {passMsg.emb&&<p style={{color:C.error,fontSize:13,marginBottom:10}}>{passMsg.emb}</p>}
+                <button onClick={cambiarPassEmb} style={{...bP,marginBottom:0}}>Actualizar contrasena embajadores</button>
+              </div>
+            </div>
+          )}
 
           {adminSec==="pruebas"&&adminTab==="menu"&&(
             <div>
@@ -670,6 +727,7 @@ export default function App(){
                     const nr={...resultados,borrador:ejemplos};
                     setResultados(nr);await sg(SK,nr);
                     setMesActivo("borrador");setAdminTab("verMes");setMesSubTab("inf");
+                    showToast("Datos de ejemplo cargados");
                   }} style={{background:C.primaryLight,color:C.primary,border:"none",borderRadius:7,padding:"6px 12px",fontSize:12,cursor:"pointer",fontWeight:600,width:"100%"}}>
                     Cargar datos de ejemplo
                   </button>
@@ -761,7 +819,7 @@ export default function App(){
                     <div><div style={{fontWeight:700,fontSize:14,color:C.text}}>{r.nombre}</div><div style={{fontSize:12,color:C.textMuted}}>{r.tienda} - {r.fecha}</div></div>
                     <div style={{display:"flex",gap:8,alignItems:"center"}}>
                       <div style={{background:pBg(r.puntaje),borderRadius:8,padding:"5px 12px",fontWeight:800,fontSize:16,color:pColor(r.puntaje)}}>{r.puntaje}/{r.total}</div>
-                      <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;const all=mesArr(mesActivo);const nr={...resultados,[mesActivo]:all.filter((_,j)=>j!==i)};setResultados(nr);await sg(SK,nr);}} style={{background:C.errorBg,border:"none",borderRadius:7,padding:"5px 9px",color:C.error,cursor:"pointer",fontSize:12}}>X</button>
+                      <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;const all=mesArr(mesActivo);const nr={...resultados,[mesActivo]:all.filter((_,j)=>j!==i)};setResultados(nr);await sg(SK,nr);showToast("Resultado eliminado");}} style={{background:C.errorBg,border:"none",borderRadius:7,padding:"5px 9px",color:C.error,cursor:"pointer",fontSize:12}}>X</button>
                     </div>
                   </div>
                   {r.desarrollo&&<div style={{marginTop:8,background:C.surface2,borderRadius:7,padding:8,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Desarrollo:</strong> {r.desarrollo}</div>}
