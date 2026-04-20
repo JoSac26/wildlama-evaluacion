@@ -392,6 +392,11 @@ export default function App(){
   const [contrasenas,setContrasenas]=useState({admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});
   const [passForm,setPassForm]=useState({adminActual:"",adminNueva:"",adminConfirm:"",embNueva:"",embConfirm:""});
   const [passMsg,setPassMsg]=useState({admin:"",emb:""});
+  const [tiendasDraft,setTiendasDraft]=useState(null);
+  const [trabDraft,setTrabDraft]=useState(null);
+  const [embDraft,setEmbDraft]=useState(null);
+  const [equipoCambiado,setEquipoCambiado]=useState(false);
+  const [guardandoEquipo,setGuardandoEquipo]=useState(false);
 
   const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
 
@@ -443,12 +448,27 @@ export default function App(){
   const globalPorVendedor=()=>{const map={};mesesConDatos.forEach(m=>{mesArr(m.id).forEach(r=>{if(!map[r.nombre])map[r.nombre]={nombre:r.nombre,tienda:r.tienda,pts:[],meses:[]};map[r.nombre].pts.push(r.puntaje);map[r.nombre].meses.push(m.label);});});return Object.values(map).map(v=>({...v,prom:(v.pts.reduce((a,b)=>a+b,0)/v.pts.length).toFixed(1)})).sort((a,b)=>b.prom-a.prom);};
   const updatePQ=(id,f,v)=>setEditPrueba(p=>({...p,preguntas:p.preguntas.map(q=>q.id===id?{...q,[f]:v}:q)}));
   const updateOp=(id,idx,v)=>setEditPrueba(p=>({...p,preguntas:p.preguntas.map(q=>{if(q.id!==id)return q;const ops=[...(q.opciones||[])];ops[idx]=v;return{...q,opciones:ops};})}));
-  const agregarTienda=async()=>{if(!nuevaTienda.trim()||tiendas.includes(nuevaTienda.trim()))return;const n=[...tiendas,nuevaTienda.trim()].sort();setTiendas(n);await sg(TK,n);setNuevaTienda("");showToast("Tienda agregada");};
-  const eliminarTienda=async(t)=>{if(!confirm("Eliminar "+t+"?"))return;const n=tiendas.filter(x=>x!==t);const nt=trabajadores.filter(w=>w.tienda!==t);setTiendas(n);setTrabajadores(nt);await sg(TK,n);await sg(WK,nt);showToast("Tienda eliminada");};
-  const agregarTrab=async(tt)=>{if(!nuevoTrab.nombre.trim())return;const n=[...trabajadores,{nombre:nuevoTrab.nombre.trim(),tienda:tt}];setTrabajadores(n);await sg(WK,n);setNuevoTrab({nombre:"",tienda:tt});showToast("Vendedor agregado");};
-  const eliminarTrab=async(idx)=>{const n=trabajadores.filter((_,i)=>i!==idx);setTrabajadores(n);await sg(WK,n);showToast("Vendedor eliminado");};
-  const agregarEmb=async()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...embajadores,{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbajadores(n);await sg(EK,n);setNuevoEmb({nombre:"",tienda:""});showToast("Embajador agregado");};
-  const eliminarEmb=async(idx)=>{const n=embajadores.filter((_,i)=>i!==idx);setEmbajadores(n);await sg(EK,n);showToast("Embajador eliminado");};
+  const draftT=()=>tiendasDraft!==null?tiendasDraft:tiendas;
+  const draftW=()=>trabDraft!==null?trabDraft:trabajadores;
+  const draftE=()=>embDraft!==null?embDraft:embajadores;
+  const marcarCambio=()=>setEquipoCambiado(true);
+  const agregarTienda=()=>{if(!nuevaTienda.trim()||draftT().includes(nuevaTienda.trim()))return;const n=[...draftT(),nuevaTienda.trim()].sort();setTiendasDraft(n);setNuevaTienda("");marcarCambio();};
+  const eliminarTienda=(t)=>{if(!confirm("Eliminar "+t+"?"))return;const n=draftT().filter(x=>x!==t);const nt=draftW().filter(w=>w.tienda!==t);setTiendasDraft(n);setTrabDraft(nt);marcarCambio();};
+  const agregarTrab=(tt)=>{if(!nuevoTrab.nombre.trim())return;const n=[...draftW(),{nombre:nuevoTrab.nombre.trim(),tienda:tt}];setTrabDraft(n);setNuevoTrab({nombre:"",tienda:tt});marcarCambio();};
+  const eliminarTrab=(idx)=>{const cur=draftW();const n=cur.filter((_,i)=>i!==idx);setTrabDraft(n);marcarCambio();};
+  const agregarEmb=()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...draftE(),{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbDraft(n);setNuevoEmb({nombre:"",tienda:""});marcarCambio();};
+  const eliminarEmb=(idx)=>{const n=draftE().filter((_,i)=>i!==idx);setEmbDraft(n);marcarCambio();};
+  const guardarEquipo=async()=>{
+    setGuardandoEquipo(true);
+    const t=tiendasDraft!==null?tiendasDraft:tiendas;
+    const w=trabDraft!==null?trabDraft:trabajadores;
+    const e=embDraft!==null?embDraft:embajadores;
+    await Promise.all([sg(TK,t),sg(WK,w),sg(EK,e)]);
+    setTiendas(t);setTrabajadores(w);setEmbajadores(e);
+    setTiendasDraft(null);setTrabDraft(null);setEmbDraft(null);
+    setEquipoCambiado(false);setGuardandoEquipo(false);
+    showToast("Equipo guardado correctamente");
+  };
 
   const cambiarPassAdmin=async()=>{
     if(passForm.adminActual!==contrasenas.admin){setPassMsg(m=>({...m,admin:"Contrasena actual incorrecta."}));return;}
@@ -955,59 +975,78 @@ export default function App(){
 
           {adminSec==="equipo"&&adminTab==="tiendas"&&(
             <div>
-              <h2 style={{color:C.text,marginTop:0,marginBottom:16}}>Tiendas y vendedores</h2>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
+                <h2 style={{color:C.text,margin:0}}>Tiendas y vendedores</h2>
+                {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontWeight:700,fontSize:14,boxShadow:"0 0 0 3px #1a7a3a44"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
+              </div>
+              {equipoCambiado&&<div style={{background:"#2e2200",border:"1px solid #f57f17",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:12,color:"#f57f17"}}>Hay cambios sin guardar. Presiona "Guardar cambios" para confirmar.</div>}
               <div style={{display:"flex",gap:8,marginBottom:16}}>
                 <input value={nuevaTienda} onChange={e=>setNuevaTienda(e.target.value)} placeholder="Nueva tienda..." onKeyDown={e=>e.key==="Enter"&&agregarTienda()} style={{flex:1,padding:"9px 12px",borderRadius:8,border:"1px solid "+C.border,fontSize:13,background:C.surface2,color:C.text}}/>
                 <button onClick={agregarTienda} style={{background:C.primary,color:"#fff",border:"none",borderRadius:8,padding:"9px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>+ Agregar</button>
               </div>
-              {tiendas.map(t=>(
-                <div key={t} style={{border:"1px solid "+C.border,borderRadius:10,marginBottom:8,overflow:"hidden"}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 14px",background:C.surface,cursor:"pointer"}} onClick={()=>setTiendaExp(tiendaExp===t?null:t)}>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <span style={{color:C.textMuted,fontSize:11}}>{tiendaExp===t?"v":">"}</span>
-                      <span style={{fontWeight:600,fontSize:14,color:C.text}}>{t}</span>
-                      <span style={{fontSize:11,color:C.textDim}}>({(trabPorTienda[t]||[]).length})</span>
-                    </div>
-                    <button onClick={e=>{e.stopPropagation();eliminarTienda(t);}} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"3px 8px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
-                  </div>
-                  {tiendaExp===t&&<div style={{padding:12,background:C.surface2}}>
-                    {(trabPorTienda[t]||[]).map((w,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 10px",background:C.surface,borderRadius:7,marginBottom:4}}>
-                        <span style={{fontSize:13,color:C.text}}>{w.nombre}</span>
-                        <button onClick={()=>{const idx=trabajadores.findIndex(x=>x.nombre===w.nombre&&x.tienda===w.tienda);eliminarTrab(idx);}} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"2px 7px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
+              {draftT().map(t=>{
+                const trabDeEstaTienda=draftW().filter(w=>w.tienda===t);
+                return(
+                  <div key={t} style={{border:"1px solid "+C.border,borderRadius:10,marginBottom:8,overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"11px 14px",background:C.surface,cursor:"pointer"}} onClick={()=>setTiendaExp(tiendaExp===t?null:t)}>
+                      <div style={{display:"flex",alignItems:"center",gap:10}}>
+                        <span style={{color:C.textMuted,fontSize:11}}>{tiendaExp===t?"v":">"}</span>
+                        <span style={{fontWeight:600,fontSize:14,color:C.text}}>{t}</span>
+                        <span style={{fontSize:11,color:C.textDim}}>({trabDeEstaTienda.length})</span>
                       </div>
-                    ))}
-                    <div style={{display:"flex",gap:7,marginTop:8}}>
-                      <input value={nuevoTrab.tienda===t?nuevoTrab.nombre:""} onChange={e=>setNuevoTrab({nombre:e.target.value,tienda:t})} placeholder="Nombre del vendedor" onKeyDown={e=>e.key==="Enter"&&nuevoTrab.tienda===t&&agregarTrab(t)} style={{flex:1,padding:"7px 10px",borderRadius:7,border:"1px solid "+C.border,fontSize:12,background:C.surface,color:C.text}}/>
-                      <button onClick={()=>agregarTrab(t)} style={{background:C.primary,color:"#fff",border:"none",borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:13,fontWeight:700}}>+</button>
+                      <button onClick={e=>{e.stopPropagation();eliminarTienda(t);}} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"3px 8px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
                     </div>
-                  </div>}
-                </div>
-              ))}
+                    {tiendaExp===t&&<div style={{padding:12,background:C.surface2}}>
+                      {trabDeEstaTienda.map((w,i)=>{
+                        const idxReal=draftW().findIndex(x=>x.nombre===w.nombre&&x.tienda===w.tienda);
+                        return(
+                          <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 10px",background:C.surface,borderRadius:7,marginBottom:4}}>
+                            <span style={{fontSize:13,color:C.text}}>{w.nombre}</span>
+                            <button onClick={()=>eliminarTrab(idxReal)} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"2px 7px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
+                          </div>
+                        );
+                      })}
+                      <div style={{display:"flex",gap:7,marginTop:8}}>
+                        <input value={nuevoTrab.tienda===t?nuevoTrab.nombre:""} onChange={e=>setNuevoTrab({nombre:e.target.value,tienda:t})} placeholder="Nombre del vendedor" onKeyDown={e=>e.key==="Enter"&&nuevoTrab.tienda===t&&agregarTrab(t)} style={{flex:1,padding:"7px 10px",borderRadius:7,border:"1px solid "+C.border,fontSize:12,background:C.surface,color:C.text}}/>
+                        <button onClick={()=>agregarTrab(t)} style={{background:C.primary,color:"#fff",border:"none",borderRadius:7,padding:"7px 12px",cursor:"pointer",fontSize:13,fontWeight:700}}>+</button>
+                      </div>
+                    </div>}
+                  </div>
+                );
+              })}
+              {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{...bP,marginTop:12,background:"#1a7a3a"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
             </div>
           )}
 
           {adminSec==="equipo"&&adminTab==="embajadores"&&(
             <div>
-              <h2 style={{color:C.text,marginTop:0,marginBottom:16}}>Embajadores</h2>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
+                <h2 style={{color:C.text,margin:0}}>Embajadores</h2>
+                {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontWeight:700,fontSize:14,boxShadow:"0 0 0 3px #1a7a3a44"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
+              </div>
+              {equipoCambiado&&<div style={{background:"#2e2200",border:"1px solid #f57f17",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:12,color:"#f57f17"}}>Hay cambios sin guardar. Presiona "Guardar cambios" para confirmar.</div>}
               <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
                 <input value={nuevoEmb.nombre} onChange={e=>setNuevoEmb(n=>({...n,nombre:e.target.value}))} placeholder="Nombre del embajador" style={{flex:1,padding:"9px 12px",borderRadius:8,border:"1px solid "+C.border,fontSize:13,background:C.surface2,color:C.text,minWidth:160}}/>
                 <select value={nuevoEmb.tienda} onChange={e=>setNuevoEmb(n=>({...n,tienda:e.target.value}))} style={{padding:"9px 12px",borderRadius:8,border:"1px solid "+C.border,fontSize:13,background:C.surface2,color:C.text}}>
-                  <option value="">Tienda</option>{tiendas.map(t=><option key={t}>{t}</option>)}
+                  <option value="">Tienda</option>{draftT().map(t=><option key={t}>{t}</option>)}
                 </select>
                 <button onClick={agregarEmb} style={{background:C.primary,color:"#fff",border:"none",borderRadius:8,padding:"9px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>+ Agregar</button>
               </div>
-              {tiendas.map(t=>{const embs=embajadores.filter(e=>e.tienda===t);if(!embs.length)return null;return(
+              {draftT().map(t=>{const embs=draftE().filter(e=>e.tienda===t);if(!embs.length)return null;return(
                 <div key={t} style={{marginBottom:12}}>
                   <div style={{fontSize:10,fontWeight:700,color:C.primary,textTransform:"uppercase",letterSpacing:1.5,marginBottom:5}}>{t}</div>
-                  {embs.map((e,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:C.surface,borderRadius:8,marginBottom:4,border:"1px solid "+C.border}}>
-                      <span style={{fontSize:13,color:C.text}}>&#11088; {e.nombre}</span>
-                      <button onClick={()=>{const idx=embajadores.findIndex(x=>x.nombre===e.nombre&&x.tienda===e.tienda);eliminarEmb(idx);}} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"2px 7px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
-                    </div>
-                  ))}
+                  {embs.map((e,i)=>{
+                    const idxReal=draftE().findIndex(x=>x.nombre===e.nombre&&x.tienda===e.tienda);
+                    return(
+                      <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:C.surface,borderRadius:8,marginBottom:4,border:"1px solid "+C.border}}>
+                        <span style={{fontSize:13,color:C.text}}>&#11088; {e.nombre}</span>
+                        <button onClick={()=>eliminarEmb(idxReal)} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"2px 7px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
+                      </div>
+                    );
+                  })}
                 </div>
               );})}
+              {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{...bP,marginTop:12,background:"#1a7a3a"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
             </div>
           )}
 
