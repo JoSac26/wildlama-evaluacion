@@ -123,7 +123,7 @@ const SUPABASE_KEY="sb_publishable_KmQSDiCkweEswcaoCPbG4A_oEhfhTRl";
 
 async function sgSB(k,v){
   try{
-    const r=await fetch(SUPABASE_URL+"/rest/v1/wl_data",{
+    const r=await fetch(SUPABASE_URL+"/rest/v1/wl_data?on_conflict=key",{
       method:"POST",
       headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Prefer":"resolution=merge-duplicates"},
       body:JSON.stringify({key:k,value:JSON.stringify(v),updated_at:new Date().toISOString()})
@@ -463,7 +463,12 @@ export default function App(){
     const t=tiendasDraft!==null?tiendasDraft:tiendas;
     const w=trabDraft!==null?trabDraft:trabajadores;
     const e=embDraft!==null?embDraft:embajadores;
-    await Promise.all([sg(TK,t),sg(WK,w),sg(EK,e)]);
+    const [r1,r2,r3]=await Promise.all([sg(TK,t),sg(WK,w),sg(EK,e)]);
+    if(!r1||!r2||!r3){
+      setGuardandoEquipo(false);
+      alert("Error al guardar en Supabase. Revisa tu conexion.\ntiendas="+r1+" vendedores="+r2+" embajadores="+r3);
+      return;
+    }
     setTiendas(t);setTrabajadores(w);setEmbajadores(e);
     setTiendasDraft(null);setTrabDraft(null);setEmbDraft(null);
     setEquipoCambiado(false);setGuardandoEquipo(false);
