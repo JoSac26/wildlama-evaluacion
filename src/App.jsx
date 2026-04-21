@@ -633,7 +633,7 @@ export default function App(){
             :resFilt.map((r,i)=>{
               const key=mkKey(r.nombre,r.version);
               const fb=feedbacks[key];const rf=refuerzos[key];const ab=fbAbierto===key;
-              const pruebaDeEsta=r.version==="Borrador"?prueba:Object.values(pruebasMes).find(p=>p&&p.version===r.version)||null;
+              const mesIdDeEsta=MESES.find(m=>m.label===r.version)?.id;const pruebaDeEsta=(()=>{if(r.version==="Borrador")return prueba;if(mesIdDeEsta&&pruebasMes[mesIdDeEsta])return pruebasMes[mesIdDeEsta];return Object.values(pruebasMes).find(p=>p&&p.version===r.version)||null;})();
               const errores=pruebaDeEsta?pruebaDeEsta.preguntas.filter(p=>p.tipo!=="desarrollo"&&r.respuestas&&r.respuestas[p.id]!==p.correcta):[];
               return(
                 <div key={i} style={{background:C.surface,borderRadius:12,padding:18,marginBottom:10,border:"1px solid "+C.border}}>
