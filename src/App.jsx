@@ -427,7 +427,7 @@ export default function App(){
   const fmt=s=>String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
   const calcP=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo"&&respuestas[p.id]===p.correcta).length:0;
   const totC=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo").length:0;
-  const buildRes=(auto=false)=>({nombre,tienda,version:pruebaActiva.version,fecha:new Date().toLocaleString("es-CL"),puntaje:calcP(),total:totC(),respuestas,desarrollo:respuestas[11]||"",dificultad:dificultad||"-",comentario,tiempoAgotado:auto});
+  const buildRes=(auto=false)=>({nombre,tienda,version:pruebaActiva.version,fecha:new Date().toLocaleString("es-CL"),puntaje:calcP(),total:totC(),respuestas,desarrollo:(()=>{const dp=pruebaActiva.preguntas.find(p=>p.tipo==="desarrollo");return dp?respuestas[dp.id]||"":"";})(),dificultad:dificultad||"-",comentario,tiempoAgotado:auto});
   const saveRes=async(r)=>{const prev=mesArr(mesVendedor);const nr={...resultados,[mesVendedor]:[...prev,r]};setResultados(nr);await sg(SK,nr);};
   const submitAuto=async()=>{const r=buildRes(true);await saveRes(r);setPuntaje(r.puntaje);setVista("resultado");};
   const handleSubmit=async()=>{
