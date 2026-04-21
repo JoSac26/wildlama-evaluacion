@@ -633,6 +633,8 @@ export default function App(){
             :resFilt.map((r,i)=>{
               const key=mkKey(r.nombre,r.version);
               const fb=feedbacks[key];const rf=refuerzos[key];const ab=fbAbierto===key;
+              const pruebaDeEsta=r.version==="Borrador"?prueba:Object.values(pruebasMes).find(p=>p&&p.version===r.version)||null;
+              const errores=pruebaDeEsta?pruebaDeEsta.preguntas.filter(p=>p.tipo!=="desarrollo"&&r.respuestas&&r.respuestas[p.id]!==p.correcta):[];
               return(
                 <div key={i} style={{background:C.surface,borderRadius:12,padding:18,marginBottom:10,border:"1px solid "+C.border}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8,marginBottom:10}}>
@@ -642,8 +644,27 @@ export default function App(){
                       {fb&&<span style={{fontSize:11,background:C.successBg,color:"#4caf50",borderRadius:6,padding:"2px 7px"}}>ok Feedback</span>}
                     </div>
                   </div>
+                  {errores.length>0&&<div style={{marginBottom:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.error,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Respuestas incorrectas</div>
+                    {errores.map((p,j)=>(
+                      <div key={j} style={{background:C.surface2,borderRadius:8,padding:"10px 12px",marginBottom:6,border:"1px solid "+C.border}}>
+                        <div style={{fontSize:12,color:C.text,marginBottom:8,lineHeight:1.5,fontWeight:600}}>{pruebaDeEsta.preguntas.indexOf(p)+1}. {p.texto}</div>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <div style={{display:"flex",alignItems:"flex-start",gap:8,background:C.errorBg,borderRadius:6,padding:"6px 10px"}}>
+                            <span style={{fontSize:12,fontWeight:800,color:C.error,flexShrink:0}}>X</span>
+                            <div><div style={{fontSize:10,color:C.error,fontWeight:700,marginBottom:2}}>RESPONDIO</div><div style={{fontSize:12,color:C.text}}>{r.respuestas[p.id]||"Sin respuesta"}</div></div>
+                          </div>
+                          <div style={{display:"flex",alignItems:"flex-start",gap:8,background:C.successBg,borderRadius:6,padding:"6px 10px"}}>
+                            <span style={{fontSize:12,fontWeight:800,color:"#4caf50",flexShrink:0}}>ok</span>
+                            <div><div style={{fontSize:10,color:"#4caf50",fontWeight:700,marginBottom:2}}>CORRECTA</div><div style={{fontSize:12,color:C.text}}>{p.correcta}</div></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>}
+                  {errores.length===0&&pruebaDeEsta&&<div style={{fontSize:12,color:"#4caf50",background:C.successBg,borderRadius:7,padding:"6px 10px",marginBottom:10}}>Sin errores en preguntas objetivas</div>}
+                  {r.desarrollo&&<div style={{background:C.surface2,borderRadius:8,padding:10,marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.primary,marginBottom:4}}>Respuesta desarrollo</div><div style={{fontSize:12,color:C.text,lineHeight:1.5}}>{r.desarrollo}</div></div>}
                   {rf&&<div style={{background:C.warningBg,borderRadius:8,padding:10,marginBottom:10}}><div style={{fontWeight:600,fontSize:12,color:C.warning,marginBottom:4}}>Puntos a reforzar</div><div style={{fontSize:13,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{rf}</div></div>}
-                  {r.desarrollo&&<div style={{background:C.surface2,borderRadius:8,padding:8,marginBottom:10,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Desarrollo:</strong> {r.desarrollo}</div>}
                   {fb&&!ab&&<div style={{background:C.surface2,borderRadius:8,padding:10,marginBottom:8}}>
                     <div style={{fontSize:11,color:C.textMuted,marginBottom:5}}>{fb.embajador} - {fb.fecha}</div>
                     <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:fb.comentario?5:0}}>
