@@ -875,6 +875,8 @@ export default function App(){
                     </div>
                   </div>
                   {r.desarrollo&&<div style={{marginTop:8,background:C.surface2,borderRadius:7,padding:8,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Desarrollo:</strong> {r.desarrollo}</div>}
+                  {(r.dificultad&&r.dificultad!=="-")&&<div style={{marginTop:6,display:"flex",gap:6,alignItems:"center"}}><span style={{fontSize:11,color:C.textDim}}>Dificultad:</span><span style={{fontSize:12,fontWeight:700,color:C.primary}}>{r.dificultad}/5</span></div>}
+                  {r.comentario&&<div style={{marginTop:6,background:C.surface2,borderRadius:7,padding:8,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Comentario:</strong> {r.comentario}</div>}
                   {r.tiempoAgotado&&<div style={{marginTop:6,background:C.errorBg,borderRadius:6,padding:5,fontSize:11,color:C.error}}>Tiempo agotado</div>}
                 </div>
               )))}
