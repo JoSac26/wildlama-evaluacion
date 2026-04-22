@@ -361,6 +361,7 @@ export default function App(){
   const [dificultad,setDificultad]=useState(null);
   const [comentario,setComentario]=useState("");
   const [puntaje,setPuntaje]=useState(null);
+  const [guardadoOk,setGuardadoOk]=useState(null);
   const [resultados,setResultados]=useState({});
   const [guardando,setGuardando]=useState(false);
   const [tiempo,setTiempo]=useState(15*60);
@@ -428,14 +429,14 @@ export default function App(){
   const calcP=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo"&&respuestas[p.id]===p.correcta).length:0;
   const totC=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo").length:0;
   const buildRes=(auto=false)=>({nombre,tienda,version:pruebaActiva.version,fecha:new Date().toLocaleString("es-CL"),puntaje:calcP(),total:totC(),respuestas,desarrollo:(()=>{const dp=pruebaActiva.preguntas.find(p=>p.tipo==="desarrollo");return dp?respuestas[dp.id]||"":"";})(),dificultad:dificultad||"-",comentario,tiempoAgotado:auto});
-  const saveRes=async(r)=>{const prev=mesArr(mesVendedor);const nr={...resultados,[mesVendedor]:[...prev,r]};setResultados(nr);await sg(SK,nr);};
-  const submitAuto=async()=>{const r=buildRes(true);await saveRes(r);setPuntaje(r.puntaje);setVista("resultado");};
+  const saveRes=async(r)=>{const prev=mesArr(mesVendedor);const nr={...resultados,[mesVendedor]:[...prev,r]};setResultados(nr);const ok=await sg(SK,nr);return ok;};
+  const submitAuto=async()=>{const r=buildRes(true);const ok=await saveRes(r);setPuntaje(r.puntaje);setGuardadoOk(ok);setVista("resultado");};
   const handleSubmit=async()=>{
     if(!tienda||!nombre)return alert("Selecciona tu nombre.");
     const sin=pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo"&&!respuestas[p.id]);
     if(sin.length>0)return alert("Te faltan "+sin.length+" pregunta(s).");
     if(!dificultad)return alert("Indica que tan dificil te parecio.");
-    setGuardando(true);const r=buildRes();await saveRes(r);setPuntaje(r.puntaje);setGuardando(false);setVista("resultado");
+    setGuardando(true);const r=buildRes();const ok=await saveRes(r);setPuntaje(r.puntaje);setGuardadoOk(ok);setGuardando(false);setVista("resultado");
   };
 
   const abrirAdmin=(pass)=>{if(pass!==contrasenas.admin){setAdminError(true);return;}setVista("admin");};
@@ -603,8 +604,13 @@ export default function App(){
           <div style={{fontSize:52,fontWeight:800,color:C.primary}}>{puntaje}<span style={{fontSize:22,color:C.textDim}}>/{totC()}</span></div>
           <div style={{color:C.textMuted,marginTop:6,fontSize:14}}>{puntaje>=8?"Excelente resultado! 🦙":puntaje>=6?"Buen trabajo, sigue repasando.":"Te recomendamos repasar el Playbook."}</div>
         </div>
+        {guardadoOk===false&&<div style={{background:C.errorBg,border:"1px solid "+C.error,borderRadius:10,padding:"12px 16px",marginBottom:14}}>
+          <div style={{fontWeight:700,color:C.error,fontSize:14,marginBottom:4}}>⚠️ Error al guardar</div>
+          <div style={{fontSize:13,color:C.text,lineHeight:1.5}}>Tu resultado no pudo guardarse por un problema de conexion. Avisa a tu embajador o a SAC para que lo registren manualmente.</div>
+        </div>}
+        {guardadoOk===true&&<div style={{background:C.successBg,border:"1px solid #4caf50",borderRadius:10,padding:"10px 16px",marginBottom:14,fontSize:13,color:"#4caf50",fontWeight:600}}>✓ Resultado guardado correctamente</div>}
         <p style={{color:C.textMuted,fontSize:13,marginBottom:20}}>Tu embajador te dara feedback pronto. 🦙</p>
-        <button onClick={()=>{setVista("inicio");setRespuestas({});setNombre("");setTienda("");setDificultad(null);setComentario("");}} style={bP}>Volver al inicio</button>
+        <button onClick={()=>{setVista("inicio");setRespuestas({});setNombre("");setTienda("");setDificultad(null);setComentario("");setGuardadoOk(null);}} style={bP}>Volver al inicio</button>
       </div>
     </div>
   );
