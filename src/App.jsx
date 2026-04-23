@@ -147,13 +147,13 @@ async function sg(k,v){return sgSB(k,v);}
 async function ld(k,d){return ldSB(k,d);}
 async function ldResultados(){
   try{
-    const r=await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=like.wl_res_%&select=key,value&order=created_at.asc",{
-      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+    const r=await fetch(SUPABASE_URL+"/rest/v1/wl_data?select=key,value&order=created_at.asc",{
+      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY,"Accept":"application/json"}
     });
     const data=await r.json();
     const sr={};
     if(data&&data.length>0){
-      data.forEach(row=>{
+      data.filter(row=>row.key&&row.key.startsWith("wl_res_")).forEach(row=>{
         try{
           const res=JSON.parse(row.value);
           const parts=row.key.split("__");
@@ -913,9 +913,9 @@ export default function App(){
                       <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;
                       // Delete from new individual rows
                       try{
-                        const rows=await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=like.wl_res_"+mesActivo+"%&select=key,value",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+                        const rows=await fetch(SUPABASE_URL+"/rest/v1/wl_data?select=key,value",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
                         const data=await rows.json();
-                        const match=data.find(row=>{try{const v=JSON.parse(row.value);return v.nombre===r.nombre&&v.fecha===r.fecha;}catch{return false;}});
+                        const match=data.filter(row=>row.key&&row.key.startsWith("wl_res_"+mesActivo)).find(row=>{try{const v=JSON.parse(row.value);return v.nombre===r.nombre&&v.fecha===r.fecha;}catch{return false;}});
                         if(match){await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=eq."+encodeURIComponent(match.key),{method:"DELETE",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});}
                       }catch{}
                       setResultados(prev=>({...prev,[mesActivo]:safeArr(prev[mesActivo]).filter((_,j)=>j!==i)}));
