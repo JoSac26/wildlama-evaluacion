@@ -145,6 +145,48 @@ async function ldSB(k,d){
 
 async function sg(k,v){return sgSB(k,v);}
 async function ld(k,d){return ldSB(k,d);}
+async function ldResultados(){
+  try{
+    const r=await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=like.wl_res_%&select=key,value&order=created_at.asc",{
+      headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}
+    });
+    const data=await r.json();
+    const sr={};
+    if(data&&data.length>0){
+      data.forEach(row=>{
+        try{
+          const res=JSON.parse(row.value);
+          const parts=row.key.split("__");
+          const mesId=parts[0].replace("wl_res_","");
+          if(!sr[mesId])sr[mesId]=[];
+          sr[mesId].push(res);
+        }catch{}
+      });
+    }
+    // Migrate legacy wl_resultados_prueba if exists
+    const legacy=await ldSB("wl_resultados_prueba",null);
+    if(legacy){
+      let legacyObj={};
+      if(Array.isArray(legacy)){legacyObj={borrador:legacy};}
+      else if(legacy&&typeof legacy==="object"){Object.entries(legacy).forEach(([k,v])=>{legacyObj[k]=Array.isArray(v)?v:[];});}
+      Object.entries(legacyObj).forEach(([mesId,arr])=>{
+        arr.forEach(res=>{
+          const rkey="wl_res_"+mesId+"__"+res.nombre.replace(/\s/g,"_")+"__"+Date.now();
+          const exists=sr[mesId]&&sr[mesId].some(x=>x.nombre===res.nombre&&x.fecha===res.fecha);
+          if(!exists){
+            if(!sr[mesId])sr[mesId]=[];
+            sr[mesId].push(res);
+          }
+        });
+      });
+    }
+    return sr;
+  }catch(e){console.error("ldResultados error:",e);return {};}
+}
+async function sgRes(mesId,res){
+  const rkey="wl_res_"+mesId+"__"+res.nombre.replace(/\s/g,"_")+"__"+new Date().getTime();
+  return sgSB(rkey,res);
+}
 function med(arr){if(!arr.length)return 0;const s=[...arr].sort((a,b)=>a-b),m=Math.floor(s.length/2);return s.length%2?s[m]:(s[m-1]+s[m])/2;}
 const mkKey=(n,v)=>n.replace(/\s/g,"_")+"__"+v.replace(/\s/g,"_");
 const pColor=(p)=>p>=8?"#4caf50":p>=6?C.warning:C.error;
@@ -402,13 +444,10 @@ export default function App(){
   const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
 
   useEffect(()=>{
-    Promise.all([ld(PK,PRUEBA_DEFAULT),ld(TK,TIENDAS_DEFAULT),ld(WK,TRABAJADORES_DEFAULT),ld(EK,EMBAJADORES_DEFAULT),ld(FK,{}),ld(RK,{}),ld(SK,{}),ld(PMK,{}),ld(CK,{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT})])
-    .then(([p,t,tr,em,fb,rf,res,pm,cp])=>{
+    Promise.all([ld(PK,PRUEBA_DEFAULT),ld(TK,TIENDAS_DEFAULT),ld(WK,TRABAJADORES_DEFAULT),ld(EK,EMBAJADORES_DEFAULT),ld(FK,{}),ld(RK,{}),ldResultados(),ld(PMK,{}),ld(CK,{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT})])
+    .then(([p,t,tr,em,fb,rf,sr,pm,cp])=>{
       setPrueba(p);setTiendas(t);setTrabajadores(tr);setEmbajadores(em);setFeedbacks(fb);setRefuerzos(rf);
-      let sr={};
-      if(Array.isArray(res)){sr={borrador:res};}
-      else if(res&&typeof res==="object"){Object.entries(res).forEach(([k,v])=>{sr[k]=Array.isArray(v)?v:[];});}
-      setResultados(sr);setPruebasMes(pm);setContrasenas(cp||{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});setLoading(false);
+      setResultados(sr||{});setPruebasMes(pm);setContrasenas(cp||{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});setLoading(false);
     });
   },[]);
 
@@ -429,7 +468,7 @@ export default function App(){
   const calcP=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo"&&respuestas[p.id]===p.correcta).length:0;
   const totC=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo").length:0;
   const buildRes=(auto=false)=>({nombre,tienda,version:pruebaActiva.version,fecha:new Date().toLocaleString("es-CL"),puntaje:calcP(),total:totC(),respuestas,desarrollo:(()=>{const dp=pruebaActiva.preguntas.find(p=>p.tipo==="desarrollo");return dp?respuestas[dp.id]||"":"";})(),dificultad:dificultad||"-",comentario,tiempoAgotado:auto});
-  const saveRes=async(r)=>{const fresh=await ld(SK,{});let freshObj={};if(Array.isArray(fresh)){freshObj={borrador:fresh};}else if(fresh&&typeof fresh==="object"){Object.entries(fresh).forEach(([k,v])=>{freshObj[k]=Array.isArray(v)?v:[];});}const prev=Array.isArray(freshObj[mesVendedor])?freshObj[mesVendedor]:[];const nr={...freshObj,[mesVendedor]:[...prev,r]};setResultados(nr);const ok=await sg(SK,nr);return ok;};
+  const saveRes=async(r)=>{const ok=await sgRes(mesVendedor,r);if(ok){setResultados(prev=>({...prev,[mesVendedor]:[...safeArr(prev[mesVendedor]),r]}));}return ok;};
   const submitAuto=async()=>{const r=buildRes(true);const ok=await saveRes(r);setPuntaje(r.puntaje);setGuardadoOk(ok);setVista("resultado");};
   const handleSubmit=async()=>{
     if(!tienda||!nombre)return alert("Selecciona tu nombre.");
@@ -871,7 +910,16 @@ export default function App(){
                     <div><div style={{fontWeight:700,fontSize:14,color:C.text}}>{r.nombre}</div><div style={{fontSize:12,color:C.textMuted}}>{r.tienda} - {r.fecha}</div></div>
                     <div style={{display:"flex",gap:8,alignItems:"center"}}>
                       <div style={{background:pBg(r.puntaje),borderRadius:8,padding:"5px 12px",fontWeight:800,fontSize:16,color:pColor(r.puntaje)}}>{r.puntaje}/{r.total}</div>
-                      <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;const all=mesArr(mesActivo);const nr={...resultados,[mesActivo]:all.filter((_,j)=>j!==i)};setResultados(nr);await sg(SK,nr);showToast("Resultado eliminado");}} style={{background:C.errorBg,border:"none",borderRadius:7,padding:"5px 9px",color:C.error,cursor:"pointer",fontSize:12}}>X</button>
+                      <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;
+                      // Delete from new individual rows
+                      try{
+                        const rows=await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=like.wl_res_"+mesActivo+"%&select=key,value",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+                        const data=await rows.json();
+                        const match=data.find(row=>{try{const v=JSON.parse(row.value);return v.nombre===r.nombre&&v.fecha===r.fecha;}catch{return false;}});
+                        if(match){await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=eq."+encodeURIComponent(match.key),{method:"DELETE",headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});}
+                      }catch{}
+                      setResultados(prev=>({...prev,[mesActivo]:safeArr(prev[mesActivo]).filter((_,j)=>j!==i)}));
+                      showToast("Resultado eliminado");}} style={{background:C.errorBg,border:"none",borderRadius:7,padding:"5px 9px",color:C.error,cursor:"pointer",fontSize:12}}>X</button>
                     </div>
                   </div>
                   {r.desarrollo&&<div style={{marginTop:8,background:C.surface2,borderRadius:7,padding:8,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Desarrollo:</strong> {r.desarrollo}</div>}
