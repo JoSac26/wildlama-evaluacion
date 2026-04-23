@@ -429,7 +429,7 @@ export default function App(){
   const calcP=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo"&&respuestas[p.id]===p.correcta).length:0;
   const totC=()=>pruebaActiva?pruebaActiva.preguntas.filter(p=>p.tipo!=="desarrollo").length:0;
   const buildRes=(auto=false)=>({nombre,tienda,version:pruebaActiva.version,fecha:new Date().toLocaleString("es-CL"),puntaje:calcP(),total:totC(),respuestas,desarrollo:(()=>{const dp=pruebaActiva.preguntas.find(p=>p.tipo==="desarrollo");return dp?respuestas[dp.id]||"":"";})(),dificultad:dificultad||"-",comentario,tiempoAgotado:auto});
-  const saveRes=async(r)=>{const prev=mesArr(mesVendedor);const nr={...resultados,[mesVendedor]:[...prev,r]};setResultados(nr);const ok=await sg(SK,nr);return ok;};
+  const saveRes=async(r)=>{const fresh=await ld(SK,{});let freshObj={};if(Array.isArray(fresh)){freshObj={borrador:fresh};}else if(fresh&&typeof fresh==="object"){Object.entries(fresh).forEach(([k,v])=>{freshObj[k]=Array.isArray(v)?v:[];});}const prev=Array.isArray(freshObj[mesVendedor])?freshObj[mesVendedor]:[];const nr={...freshObj,[mesVendedor]:[...prev,r]};setResultados(nr);const ok=await sg(SK,nr);return ok;};
   const submitAuto=async()=>{const r=buildRes(true);const ok=await saveRes(r);setPuntaje(r.puntaje);setGuardadoOk(ok);setVista("resultado");};
   const handleSubmit=async()=>{
     if(!tienda||!nombre)return alert("Selecciona tu nombre.");
