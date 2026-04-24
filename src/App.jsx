@@ -3,19 +3,10 @@ import { useState, useEffect } from "react";
 
 const C={bg:"#1a1a1a",surface:"#242424",surface2:"#2e2e2e",border:"#3a3a3a",primary:"#e8671a",primaryLight:"#3d2010",text:"#f0f0f0",textMuted:"#999",textDim:"#555",successBg:"#1a2e1a",warning:"#f57f17",warningBg:"#2e2200",error:"#c62828",errorBg:"#2e1a1a"};
 
-const MESES=[
-  {id:"borrador",label:"Borrador",tipo:"borrador"},
-  {id:"marzo2026",label:"Marzo 2026",tipo:"mensual"},
-  {id:"abril2026",label:"Abril 2026",tipo:"mensual"},
-  {id:"mayo2026",label:"Mayo 2026",tipo:"mensual"},
-  {id:"junio2026",label:"Junio 2026",tipo:"mensual"},
-  {id:"julio2026",label:"Julio 2026",tipo:"mensual"},
-  {id:"agosto2026",label:"Agosto 2026",tipo:"mensual"},
-  {id:"septiembre2026",label:"Septiembre 2026",tipo:"mensual"},
-  {id:"octubre2026",label:"Octubre 2026",tipo:"mensual"},
-  {id:"noviembre2026",label:"Noviembre 2026",tipo:"mensual"},
-  {id:"diciembre2026",label:"Diciembre 2026",tipo:"mensual"},
-];
+const MESES_NOMBRES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+function generarMesesAnio(anio){return MESES_NOMBRES.map((m,i)=>({id:m.toLowerCase()+anio,label:m+" "+anio,tipo:"mensual",anio}));}
+const MESES_BASE=[{id:"borrador",label:"Borrador",tipo:"borrador",anio:null}];
+function getMeses(anios){return[...MESES_BASE,...anios.flatMap(a=>generarMesesAnio(a))];}
 
 const TIENDAS_DEFAULT=["Antofagasta","Chicureo","Chillan","Costanera","Coyhaique","Curico","La Serena","Laguna","Los Angeles","Marina","Osorno","PAK","Pichilemu","Puerto Montt","Puerto Varas","Pucon","San Fernando","Talca","Trebol","Temuco","Vespucio","Vitacura"];
 
@@ -115,7 +106,7 @@ const PRUEBA_DEFAULT={
 
 const SK="wl_resultados_prueba",PK="wl_prueba_config",TK="wl_tiendas";
 const WK="wl_trabajadores",EK="wl_embajadores",FK="wl_feedback",RK="wl_refuerzo";
-const PMK="wl_pruebas_mensuales",CK="wl_contrasenas";
+const PMK="wl_pruebas_mensuales",CK="wl_contrasenas",MCK="wl_meses_config";
 const ADMIN_PASS_DEFAULT="wildlama2026",EMB_PASS_DEFAULT="embajador2026";
 
 const SUPABASE_URL="https://mmumkccyernmsgoohdvx.supabase.co";
@@ -390,6 +381,8 @@ export default function App(){
   const [vista,setVista]=useState("inicio");
   const [prueba,setPrueba]=useState(null);
   const [pruebasMes,setPruebasMes]=useState({});
+  const [anios,setAnios]=useState([2026]);
+  const [mesesConfig,setMesesConfig]=useState({inactivas:[]});
   const [tiendas,setTiendas]=useState([]);
   const [trabajadores,setTrabajadores]=useState([]);
   const [embajadores,setEmbajadores]=useState([]);
@@ -440,17 +433,22 @@ export default function App(){
   const [embDraft,setEmbDraft]=useState(null);
   const [equipoCambiado,setEquipoCambiado]=useState(false);
   const [guardandoEquipo,setGuardandoEquipo]=useState(false);
+  const [modalCierre,setModalCierre]=useState(null);
+  const [selNoPresentados,setSelNoPresentados]=useState({});
 
   const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
 
   useEffect(()=>{
-    Promise.all([ld(PK,PRUEBA_DEFAULT),ld(TK,TIENDAS_DEFAULT),ld(WK,TRABAJADORES_DEFAULT),ld(EK,EMBAJADORES_DEFAULT),ld(FK,{}),ld(RK,{}),ldResultados(),ld(PMK,{}),ld(CK,{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT})])
-    .then(([p,t,tr,em,fb,rf,sr,pm,cp])=>{
+    Promise.all([ld(PK,PRUEBA_DEFAULT),ld(TK,TIENDAS_DEFAULT),ld(WK,TRABAJADORES_DEFAULT),ld(EK,EMBAJADORES_DEFAULT),ld(FK,{}),ld(RK,{}),ldResultados(),ld(PMK,{}),ld(CK,{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT}),ld(MCK,{inactivas:[],anios:[2026]})])
+    .then(([p,t,tr,em,fb,rf,sr,pm,cp,mc])=>{
       setPrueba(p);setTiendas(t);setTrabajadores(tr);setEmbajadores(em);setFeedbacks(fb);setRefuerzos(rf);
-      setResultados(sr||{});setPruebasMes(pm);setContrasenas(cp||{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});setLoading(false);
+      setResultados(sr||{});setPruebasMes(pm);setContrasenas(cp||{admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});
+      const mcData=mc||{inactivas:[],anios:[2026]};setMesesConfig(mcData);setAnios(mcData.anios||[2026]);setLoading(false);
     });
   },[]);
 
+  const MESES=getMeses(anios);
+  const inactivasSet=new Set(mesesConfig.inactivas||[]);
   const pruebaActiva=pruebasMes[mesVendedor]||(mesVendedor==="borrador"?prueba:null);
   const mesArr=(id)=>safeArr(resultados[id]);
   const allRes=()=>Object.values(resultados).flatMap(v=>safeArr(v));
@@ -483,6 +481,47 @@ export default function App(){
   const guardarRF=async(n,v)=>{const key=mkKey(n,v);setGuardandoRF(key);const nr={...refuerzos,[key]:refuerzoEdit[key]||""};await sg(RK,nr);setRefuerzos(nr);setGuardandoRF(null);showToast("Puntos a reforzar guardados");};
   const guardarFb=async(n,v)=>{setGuardandoFb(true);const key=mkKey(n,v);const nr={...feedbacks,[key]:{...fbForm,fecha:new Date().toLocaleString("es-CL"),embajador:embNombre}};await sg(FK,nr);setFeedbacks(nr);setGuardandoFb(false);setFbAbierto(null);showToast("Feedback guardado");};
   const guardarPrueba=async()=>{setGuardandoPrueba(true);if(mesActivo==="borrador"){await sg(PK,editPrueba);setPrueba(editPrueba);}else{const n={...pruebasMes,[mesActivo]:editPrueba};await sg(PMK,n);setPruebasMes(n);}setGuardandoPrueba(false);showToast("Prueba guardada");};
+  const toggleInactiva=async(mesId)=>{
+    const lista=mesesConfig.inactivas||[];
+    if(lista.includes(mesId)){
+      const nc={...mesesConfig,inactivas:lista.filter(x=>x!==mesId)};
+      await sg(MCK,nc);setMesesConfig(nc);showToast("Prueba reactivada");
+    } else {
+      const resDelMes=mesArr(mesId);
+      const tiendasConRes={};
+      resDelMes.forEach(r=>{if(!tiendasConRes[r.tienda])tiendasConRes[r.tienda]=[];tiendasConRes[r.tienda].push(r.nombre);});
+      const tiendasIncompletas=tiendas.filter(t=>(tiendasConRes[t]||[]).length<2);
+      if(tiendasIncompletas.length>0){
+        setSelNoPresentados({});
+        setModalCierre({mesId,tiendasIncompletas,tiendasConRes});
+      } else {
+        const nc={...mesesConfig,inactivas:[...lista,mesId]};
+        await sg(MCK,nc);setMesesConfig(nc);showToast("Prueba marcada como inactiva");
+      }
+    }
+  };
+  const confirmarCierre=async()=>{
+    const {mesId}=modalCierre;
+    const pruebaDelMes=pruebasMes[mesId]||(mesId==="borrador"?prueba:null);
+    const totalPregs=pruebaDelMes?pruebaDelMes.preguntas.filter(p=>p.tipo!=="desarrollo").length:10;
+    const nuevosRes=[];
+    Object.entries(selNoPresentados).forEach(([tienda,nombres])=>{
+      nombres.forEach(nombre=>{
+        if(nombre){
+          const r={nombre,tienda,version:pruebaDelMes?.version||mesId,fecha:new Date().toLocaleString("es-CL"),puntaje:0,total:totalPregs,respuestas:{},desarrollo:"",dificultad:"-",comentario:"",noPresentado:true};
+          nuevosRes.push(r);
+        }
+      });
+    });
+    for(const r of nuevosRes){await sgRes(mesId,r);}
+    setResultados(prev=>({...prev,[mesId]:[...safeArr(prev[mesId]),...nuevosRes]}));
+    const lista=mesesConfig.inactivas||[];
+    const nc={...mesesConfig,inactivas:[...lista,mesId]};
+    await sg(MCK,nc);setMesesConfig(nc);
+    setModalCierre(null);setSelNoPresentados({});
+    showToast("Prueba cerrada y no presentados registrados");
+  };
+  const agregarAnio=async()=>{const nuevoAnio=Math.max(...anios)+1;const nuevosAnios=[...anios,nuevoAnio];const nc={...mesesConfig,anios:nuevosAnios};await sg(MCK,nc);setMesesConfig(nc);setAnios(nuevosAnios);showToast("Año "+nuevoAnio+" agregado");};
   const trabPorTienda=tiendas.reduce((acc,t)=>{acc[t]=trabajadores.filter(w=>w.tienda===t);return acc;},{});
   const globalPorTienda=()=>{const map={};mesesConDatos.forEach(m=>{mesArr(m.id).forEach(r=>{if(!map[r.tienda])map[r.tienda]={tienda:r.tienda,pts:[],count:0};map[r.tienda].pts.push(r.puntaje);map[r.tienda].count++;});});return Object.values(map).map(t=>({...t,prom:(t.pts.reduce((a,b)=>a+b,0)/t.pts.length).toFixed(1)})).sort((a,b)=>b.prom-a.prom);};
   const globalPorVendedor=()=>{const map={};mesesConDatos.forEach(m=>{mesArr(m.id).forEach(r=>{if(!map[r.nombre])map[r.nombre]={nombre:r.nombre,tienda:r.tienda,pts:[],meses:[]};map[r.nombre].pts.push(r.puntaje);map[r.nombre].meses.push(m.label);});});return Object.values(map).map(v=>({...v,prom:(v.pts.reduce((a,b)=>a+b,0)/v.pts.length).toFixed(1)})).sort((a,b)=>b.prom-a.prom);};
@@ -535,7 +574,7 @@ export default function App(){
   if(loading)return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>🦙</div>;
 
   if(vista==="inicio"){
-    const mesesDisp=MESES.filter(m=>m.id==="borrador"||(pruebasMes[m.id]&&pruebasMes[m.id].preguntas?.length>0));
+    const mesesDisp=MESES.filter(m=>m.id==="borrador"||(!inactivasSet.has(m.id)&&pruebasMes[m.id]&&pruebasMes[m.id].preguntas?.length>0));
     return(
       <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif",position:"relative"}}>
         {toast&&<ToastGuardado msg={toast}/>}
@@ -749,6 +788,36 @@ export default function App(){
     return(
       <div style={{minHeight:"100vh",background:C.bg,fontFamily:"sans-serif",display:"flex"}}>
         {toast&&<ToastGuardado msg={toast}/>}
+        {modalCierre&&<div style={{position:"fixed",inset:0,background:"#000a",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:C.surface,borderRadius:16,padding:28,maxWidth:520,width:"100%",maxHeight:"80vh",overflowY:"auto",boxShadow:"0 8px 32px #000a"}}>
+            <h3 style={{color:C.text,marginTop:0,marginBottom:6}}>Cerrar prueba</h3>
+            <p style={{color:C.textMuted,fontSize:13,marginBottom:20}}>Las siguientes tiendas tienen menos de 2 evaluaciones. Selecciona los vendedores que no se presentaron para registrarlos con nota 0.</p>
+            {modalCierre.tiendasIncompletas.map(t=>{
+              const yaRindieron=modalCierre.tiendasConRes[t]||[];
+              const faltantes=2-yaRindieron.length;
+              const trabDeEsta=trabajadores.filter(w=>w.tienda===t&&!yaRindieron.includes(w.nombre));
+              const seleccionados=selNoPresentados[t]||[];
+              return(
+                <div key={t} style={{background:C.surface2,borderRadius:10,padding:14,marginBottom:12}}>
+                  <div style={{fontWeight:700,color:C.text,fontSize:13,marginBottom:4}}>{t}</div>
+                  <div style={{fontSize:11,color:C.textMuted,marginBottom:10}}>Rindieron {yaRindieron.length}/2 — falta {faltantes} vendedor{faltantes>1?"es":""}</div>
+                  {Array.from({length:faltantes}).map((_,idx)=>(
+                    <div key={idx} style={{marginBottom:8}}>
+                      <select value={seleccionados[idx]||""} onChange={e=>{const n=[...seleccionados];n[idx]=e.target.value;setSelNoPresentados(s=>({...s,[t]:n}));}} style={{width:"100%",padding:"8px 10px",borderRadius:7,border:"1px solid "+C.border,fontSize:13,background:C.surface,color:C.text}}>
+                        <option value="">Seleccionar vendedor {idx+1}</option>
+                        {trabDeEsta.filter(w=>!seleccionados.includes(w.nombre)||seleccionados[idx]===w.nombre).map(w=><option key={w.nombre} value={w.nombre}>{w.nombre}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            <div style={{display:"flex",gap:10,marginTop:16}}>
+              <button onClick={confirmarCierre} style={{flex:1,background:"#1a5c2a",color:"#fff",border:"none",borderRadius:10,padding:"12px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>Confirmar y cerrar prueba</button>
+              <button onClick={async()=>{const lista=mesesConfig.inactivas||[];const nc={...mesesConfig,inactivas:[...lista,modalCierre.mesId]};await sg(MCK,nc);setMesesConfig(nc);setModalCierre(null);showToast("Prueba marcada como inactiva");}} style={{flex:1,background:C.surface2,color:C.textMuted,border:"1px solid "+C.border,borderRadius:10,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>Cerrar sin registrar</button>
+            </div>
+          </div>
+        </div>}
         <div style={{width:220,background:C.surface,borderRight:"1px solid "+C.border,padding:"20px 12px",display:"flex",flexDirection:"column",gap:2,flexShrink:0}}>
           <div style={{fontSize:22,marginBottom:2}}>🦙</div>
           <div style={{fontWeight:700,color:C.text,fontSize:14,marginBottom:2}}>Panel Admin</div>
@@ -789,55 +858,75 @@ export default function App(){
 
           {adminSec==="pruebas"&&adminTab==="menu"&&(
             <div>
-              <h2 style={{color:C.text,marginTop:0,marginBottom:20}}>Pruebas mensuales</h2>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12}}>
-                <div style={{background:C.surface,borderRadius:12,padding:18,border:"1px solid "+C.border}}>
-                  <div style={{fontSize:11,color:C.textMuted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Borrador</div>
-                  <div style={{fontWeight:700,color:C.text,fontSize:16,marginBottom:6,cursor:"pointer"}} onClick={()=>{setMesActivo("borrador");setAdminTab("verMes");setMesSubTab("inf");}}>Prueba de ensayo</div>
-                  <div style={{fontSize:12,color:C.textDim,marginBottom:10}}>{mesArr("borrador").length} evaluaciones</div>
-                  <button onClick={async(e)=>{
-                    e.stopPropagation();
-                    const nombres=[
-                      {n:"Jesus Guillen Jerez",t:"Vitacura"},{n:"Valentina Saa Pino",t:"Vitacura"},
-                      {n:"Florencia Toro Junginger",t:"Vitacura"},{n:"Talia Godoy Jofre",t:"Vitacura"},
-                      {n:"Cristell Santillan Nestarez",t:"Vitacura"},{n:"Fabiola Quispe Toribio",t:"Vitacura"},
-                      {n:"Claudia Vargas Alfaro",t:"Antofagasta"},{n:"Ingrid Becerra",t:"Antofagasta"},
-                      {n:"Oscar Carvajal",t:"Marina"},{n:"Vanessa Munoz",t:"Marina"},
-                    ];
-                    const pregs=prueba.preguntas.filter(p=>p.tipo!=="desarrollo");
-                    const ejemplos=nombres.map((v,i)=>{
-                      const resp={};
-                      pregs.forEach((p)=>{
-                        const acierta=Math.random()>0.35;
-                        if(p.tipo==="vof"){resp[p.id]=acierta?p.correcta:(p.correcta==="Verdadero"?"Falso":"Verdadero");}
-                        else{resp[p.id]=acierta?p.correcta:(p.opciones.find(o=>o!==p.correcta)||p.correcta);}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:10}}>
+                <h2 style={{color:C.text,margin:0}}>Pruebas mensuales</h2>
+                <button onClick={agregarAnio} style={{background:C.primaryLight,color:C.primary,border:"none",borderRadius:8,padding:"8px 16px",cursor:"pointer",fontWeight:700,fontSize:13}}>+ Agregar año {Math.max(...anios)+1}</button>
+              </div>
+              <div style={{marginBottom:16}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:12,marginBottom:20}}>
+                  <div style={{background:C.surface,borderRadius:12,padding:18,border:"1px solid "+C.border}}>
+                    <div style={{fontSize:11,color:C.textMuted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Borrador</div>
+                    <div style={{fontWeight:700,color:C.text,fontSize:16,marginBottom:6,cursor:"pointer"}} onClick={()=>{setMesActivo("borrador");setAdminTab("verMes");setMesSubTab("inf");}}>Prueba de ensayo</div>
+                    <div style={{fontSize:12,color:C.textDim,marginBottom:10}}>{mesArr("borrador").length} evaluaciones</div>
+                    <button onClick={async(e)=>{
+                      e.stopPropagation();
+                      const nombres=[
+                        {n:"Jesus Guillen Jerez",t:"Vitacura"},{n:"Valentina Saa Pino",t:"Vitacura"},
+                        {n:"Florencia Toro Junginger",t:"Vitacura"},{n:"Talia Godoy Jofre",t:"Vitacura"},
+                        {n:"Cristell Santillan Nestarez",t:"Vitacura"},{n:"Fabiola Quispe Toribio",t:"Vitacura"},
+                        {n:"Claudia Vargas Alfaro",t:"Antofagasta"},{n:"Ingrid Becerra",t:"Antofagasta"},
+                        {n:"Oscar Carvajal",t:"Marina"},{n:"Vanessa Munoz",t:"Marina"},
+                      ];
+                      const pregs=prueba.preguntas.filter(p=>p.tipo!=="desarrollo");
+                      const ejemplos=nombres.map((v,i)=>{
+                        const resp={};
+                        pregs.forEach((p)=>{
+                          const acierta=Math.random()>0.35;
+                          if(p.tipo==="vof"){resp[p.id]=acierta?p.correcta:(p.correcta==="Verdadero"?"Falso":"Verdadero");}
+                          else{resp[p.id]=acierta?p.correcta:(p.opciones.find(o=>o!==p.correcta)||p.correcta);}
+                        });
+                        const pt=pregs.filter(p=>resp[p.id]===p.correcta).length;
+                        return{nombre:v.n,tienda:v.t,version:"Borrador",fecha:"01/05/2026 10:"+String(i*5+10).padStart(2,"0"),puntaje:pt,total:pregs.length,respuestas:resp,desarrollo:"Es una empresa que cumple con estandares sociales y ambientales.",dificultad:3,comentario:"",tiempoAgotado:false};
                       });
-                      const pt=pregs.filter(p=>resp[p.id]===p.correcta).length;
-                      return{nombre:v.n,tienda:v.t,version:"Borrador",fecha:"01/05/2026 10:"+String(i*5+10).padStart(2,"0"),puntaje:pt,total:pregs.length,respuestas:resp,desarrollo:"Es una empresa que cumple con estandares sociales y ambientales.",dificultad:3,comentario:"",tiempoAgotado:false};
-                    });
-                    const nr={...resultados,borrador:ejemplos};
-                    setResultados(nr);await sg(SK,nr);
-                    setMesActivo("borrador");setAdminTab("verMes");setMesSubTab("inf");
-                    showToast("Datos de ejemplo cargados");
-                  }} style={{background:C.primaryLight,color:C.primary,border:"none",borderRadius:7,padding:"6px 12px",fontSize:12,cursor:"pointer",fontWeight:600,width:"100%"}}>
-                    Cargar datos de ejemplo
-                  </button>
+                      const nr={...resultados,borrador:ejemplos};
+                      setResultados(nr);await sg(SK,nr);
+                      setMesActivo("borrador");setAdminTab("verMes");setMesSubTab("inf");
+                      showToast("Datos de ejemplo cargados");
+                    }} style={{background:C.primaryLight,color:C.primary,border:"none",borderRadius:7,padding:"6px 12px",fontSize:12,cursor:"pointer",fontWeight:600,width:"100%"}}>
+                      Cargar datos de ejemplo
+                    </button>
+                  </div>
                 </div>
-                {MESES.filter(m=>m.tipo==="mensual").map(m=>{
-                  const res=mesArr(m.id);const prb=pruebasMes[m.id];
-                  const pts=res.map(r=>r.puntaje);
-                  const prom=pts.length?(pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1):null;
-                  return(
-                    <div key={m.id} style={{background:C.surface,borderRadius:12,padding:18,border:"1px solid "+(prb?C.primary:C.border),cursor:"pointer",position:"relative"}} onClick={()=>{setMesActivo(m.id);setAdminTab("verMes");setMesSubTab("inf");}}>
-                      {prb&&<div style={{position:"absolute",top:10,right:10,fontSize:10,background:C.primaryLight,color:C.primary,borderRadius:5,padding:"2px 6px"}}>Activa</div>}
-                      <div style={{fontSize:11,color:C.textMuted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Mensual</div>
-                      <div style={{fontWeight:700,color:C.text,fontSize:15,marginBottom:6}}>{m.label}</div>
-                      <div style={{fontSize:12,color:C.textDim}}>{res.length} evaluaciones</div>
-                      {prom&&<div style={{fontSize:13,color:C.primary,fontWeight:700,marginTop:4}}>Prom: {prom}/10</div>}
-                      {!prb&&<div style={{fontSize:11,color:C.textDim,marginTop:4}}>Sin configurar</div>}
+                {anios.map(anio=>(
+                  <div key={anio} style={{marginBottom:24}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.primary,textTransform:"uppercase",letterSpacing:2,marginBottom:10,paddingBottom:6,borderBottom:"1px solid "+C.border}}>{anio}</div>
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10}}>
+                      {MESES.filter(m=>m.anio===anio).map(m=>{
+                        const res=mesArr(m.id);const prb=pruebasMes[m.id];
+                        const pts=res.map(r=>r.puntaje);
+                        const prom=pts.length?(pts.reduce((a,b)=>a+b,0)/pts.length).toFixed(1):null;
+                        const inactiva=inactivasSet.has(m.id);
+                        return(
+                          <div key={m.id} style={{background:C.surface,borderRadius:12,padding:16,border:"1px solid "+(inactiva?"#555":prb?C.primary:C.border),position:"relative",opacity:inactiva?0.7:1}}>
+                            <div style={{position:"absolute",top:8,right:8,display:"flex",gap:4}}>
+                              {inactiva&&<span style={{fontSize:9,background:"#555",color:"#aaa",borderRadius:4,padding:"2px 5px",fontWeight:700}}>INACTIVA</span>}
+                              {!inactiva&&prb&&<span style={{fontSize:9,background:C.primaryLight,color:C.primary,borderRadius:4,padding:"2px 5px"}}>Activa</span>}
+                            </div>
+                            <div style={{cursor:"pointer"}} onClick={()=>{setMesActivo(m.id);setAdminTab("verMes");setMesSubTab("inf");}}>
+                              <div style={{fontWeight:700,color:inactiva?C.textMuted:C.text,fontSize:14,marginBottom:4,marginTop:4}}>{m.label}</div>
+                              <div style={{fontSize:11,color:C.textDim}}>{res.length} evaluaciones</div>
+                              {prom&&<div style={{fontSize:12,color:C.primary,fontWeight:700,marginTop:3}}>Prom: {prom}/10</div>}
+                              {!prb&&<div style={{fontSize:11,color:C.textDim,marginTop:3}}>Sin configurar</div>}
+                            </div>
+                            <button onClick={e=>{e.stopPropagation();toggleInactiva(m.id);}} style={{marginTop:8,width:"100%",background:inactiva?"#1a3a1a":"#2e2e2e",color:inactiva?"#4caf50":"#999",border:"none",borderRadius:6,padding:"5px 0",fontSize:11,cursor:"pointer",fontWeight:600}}>
+                              {inactiva?"Reactivar":"Marcar inactiva"}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -848,6 +937,7 @@ export default function App(){
                 <button onClick={()=>{setAdminTab("menu");setMesActivo(null);}} style={{background:C.surface,border:"1px solid "+C.border,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13,color:C.textMuted}}>Volver</button>
                 <h2 style={{color:C.text,margin:0}}>{mesLabel}</h2>
                 <button onClick={()=>descargarExcel(mesLabel,mesRes,mesPrueba,refuerzos,feedbacks)} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>Descargar Excel</button>
+                {mesActivo!=="borrador"&&<button onClick={()=>toggleInactiva(mesActivo)} style={{background:inactivasSet.has(mesActivo)?"#1a3a1a":"#2e2e2e",color:inactivasSet.has(mesActivo)?"#4caf50":"#999",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>{inactivasSet.has(mesActivo)?"Reactivar":"Marcar inactiva"}</button>}
                 <button onClick={()=>{setEditPrueba(mesPrueba?JSON.parse(JSON.stringify(mesPrueba)):{...PRUEBA_DEFAULT,version:mesLabel,preguntas:[]});setAdminTab("editarMes");}} style={{background:C.primaryLight,border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,color:C.primary,fontWeight:600,marginLeft:"auto"}}>{mesPrueba?"Editar":"Configurar"}</button>
               </div>
               <div style={{display:"flex",gap:6,marginBottom:20}}>
@@ -925,6 +1015,7 @@ export default function App(){
                   {r.desarrollo&&<div style={{marginTop:8,background:C.surface2,borderRadius:7,padding:8,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Desarrollo:</strong> {r.desarrollo}</div>}
                   {(r.dificultad&&r.dificultad!=="-")&&<div style={{marginTop:6,display:"flex",gap:6,alignItems:"center"}}><span style={{fontSize:11,color:C.textDim}}>Dificultad:</span><span style={{fontSize:12,fontWeight:700,color:C.primary}}>{r.dificultad}/5</span></div>}
                   {r.comentario&&<div style={{marginTop:6,background:C.surface2,borderRadius:7,padding:8,fontSize:12,color:C.textMuted}}><strong style={{color:C.text}}>Comentario:</strong> {r.comentario}</div>}
+                  {r.noPresentado&&<div style={{marginTop:6,background:C.errorBg,borderRadius:6,padding:"5px 10px",fontSize:11,color:C.error,fontWeight:700}}>No se presentó</div>}
                   {r.tiempoAgotado&&<div style={{marginTop:6,background:C.errorBg,borderRadius:6,padding:5,fontSize:11,color:C.error}}>Tiempo agotado</div>}
                 </div>
               )))}
