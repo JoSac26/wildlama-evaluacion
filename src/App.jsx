@@ -747,7 +747,18 @@ export default function App(){
                     ))}
                   </div>}
                   {errores.length===0&&pruebaDeEsta&&<div style={{fontSize:12,color:"#4caf50",background:C.successBg,borderRadius:7,padding:"6px 10px",marginBottom:10}}>Sin errores en preguntas objetivas</div>}
-                  {r.desarrollo&&<div style={{background:C.surface2,borderRadius:8,padding:10,marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.primary,marginBottom:4}}>Respuesta desarrollo</div><div style={{fontSize:12,color:C.text,lineHeight:1.5}}>{r.desarrollo}</div></div>}
+                  {r.desarrollo&&<div style={{background:C.surface2,borderRadius:8,padding:10,marginBottom:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.primary,marginBottom:4}}>Respuesta desarrollo</div>
+                    <div style={{fontSize:12,color:C.text,lineHeight:1.5,marginBottom:pruebaDeEsta?.respuestaModelo?10:0}}>{r.desarrollo}</div>
+                    {pruebaDeEsta?.respuestaModelo&&<div style={{borderTop:"1px solid "+C.border,paddingTop:8,marginTop:4}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#4caf50",marginBottom:4}}>Respuesta modelo</div>
+                      <div style={{fontSize:12,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{pruebaDeEsta.respuestaModelo}</div>
+                    </div>}
+                  </div>}
+                  {!r.desarrollo&&pruebaDeEsta?.respuestaModelo&&<div style={{background:C.surface2,borderRadius:8,padding:10,marginBottom:10}}>
+                    <div style={{fontSize:11,fontWeight:700,color:"#4caf50",marginBottom:4}}>Respuesta modelo</div>
+                    <div style={{fontSize:12,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{pruebaDeEsta.respuestaModelo}</div>
+                  </div>}
                   {rf&&<div style={{background:C.warningBg,borderRadius:8,padding:10,marginBottom:10}}><div style={{fontWeight:600,fontSize:12,color:C.warning,marginBottom:4}}>Puntos a reforzar</div><div style={{fontSize:13,color:C.text,lineHeight:1.5,whiteSpace:"pre-wrap"}}>{rf}</div></div>}
                   {fb&&!ab&&<div style={{background:C.surface2,borderRadius:8,padding:10,marginBottom:8}}>
                     <div style={{fontSize:11,color:C.textMuted,marginBottom:5}}>{fb.embajador} - {fb.fecha}</div>
@@ -1068,6 +1079,8 @@ export default function App(){
               <div style={{background:C.surface,borderRadius:14,padding:22,border:"1px solid "+C.border}}>
                 <label style={{fontWeight:600,display:"block",marginBottom:5,fontSize:11,color:C.textMuted}}>VERSION</label>
                 <input value={editPrueba.version} onChange={e=>setEditPrueba(p=>({...p,version:e.target.value}))} style={{...ss(20)}}/>
+                <label style={{fontWeight:600,display:"block",marginBottom:5,fontSize:11,color:C.textMuted}}>RESPUESTA MODELO — PREGUNTA DE DESARROLLO</label>
+                <textarea value={editPrueba.respuestaModelo||""} onChange={e=>setEditPrueba(p=>({...p,respuestaModelo:e.target.value}))} placeholder="Escribe aqui la respuesta ideal para la pregunta de desarrollo..." rows={4} style={{width:"100%",padding:"10px 12px",borderRadius:8,border:"1px solid "+C.border,fontSize:13,resize:"vertical",boxSizing:"border-box",marginBottom:20,background:C.surface2,color:C.text}}/>
                 <h3 style={{color:C.textMuted,marginBottom:12,fontSize:11}}>PREGUNTAS</h3>
                 {(editPrueba.preguntas||[]).map((p,i)=>(
                   <div key={p.id} style={{border:"1px solid "+C.border,borderRadius:10,padding:14,marginBottom:12}}>
