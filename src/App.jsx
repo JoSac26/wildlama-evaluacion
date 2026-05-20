@@ -243,6 +243,26 @@ function descargarExcel(label,rows,prueba,refs,fbs){
   });
 }
 
+function descargarFeedbackExcel(label,rows,fbs){
+  loadXLSX(function(){
+    var X=window.XLSX;
+    var wb=X.utils.book_new();
+    var conFb=rows.filter(function(r){return fbs[mkKey(r.nombre,r.version)];}).length;
+    var f1=[["Prueba",label],["Total evaluaciones",rows.length],["Con feedback",conFb],["Pendiente",rows.length-conFb]];
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(f1),"Resumen");
+    var f2=[["Nombre","Tienda","Puntaje","Feedback completado","Embajador","Fecha feedback","Teorico","Role-Play","Notion","Casos reales","Comentario"]];
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];var fb=fbs[mkKey(r.nombre,r.version)];
+      f2.push([r.nombre,r.tienda,r.puntaje+"/"+r.total,fb?"Si":"No",fb?fb.embajador||"":"-",fb?fb.fecha||"":"-",fb?fb.teorico?"Si":"No":"-",fb?fb.roleplay?"Si":"No":"-",fb?fb.notion?"Si":"No":"-",fb?fb.aplicacion?"Si":"No":"-",fb?fb.comentario||"":"-"]);
+    }
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(f2),"Feedback detalle");
+    var f3=[["Nombre","Tienda","Puntaje"]];
+    for(var j=0;j<rows.length;j++){var rp=rows[j];if(!fbs[mkKey(rp.nombre,rp.version)])f3.push([rp.nombre,rp.tienda,rp.puntaje+"/"+rp.total]);}
+    X.utils.book_append_sheet(wb,X.utils.aoa_to_sheet(f3),"Pendientes");
+    X.writeFile(wb,"Feedback_"+label+".xlsx");
+  });
+}
+
 function BarChart({data,max}){
   return(
     <div style={{marginTop:8}}>
@@ -972,7 +992,7 @@ export default function App(){
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,flexWrap:"wrap"}}>
                 <button onClick={()=>{setAdminTab("menu");setMesActivo(null);}} style={{background:C.surface,border:"1px solid "+C.border,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:13,color:C.textMuted}}>Volver</button>
                 <h2 style={{color:C.text,margin:0}}>{mesLabel}</h2>
-                <button onClick={()=>descargarExcel(mesLabel,mesRes,mesPrueba,refuerzos,feedbacks)} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>Descargar Excel</button>
+                <button onClick={()=>descargarExcel(mesLabel,mesRes,mesPrueba,refuerzos,feedbacks)} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>Descargar Excel</button><button onClick={()=>descargarFeedbackExcel(mesLabel,mesRes,feedbacks)} style={{background:"#1a3a5c",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>Feedback Excel</button>
                 {mesActivo!=="borrador"&&<button onClick={()=>toggleInactiva(mesActivo)} style={{background:inactivasSet.has(mesActivo)?"#1a3a1a":"#2e2e2e",color:inactivasSet.has(mesActivo)?"#4caf50":"#999",border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,fontWeight:600}}>{inactivasSet.has(mesActivo)?"Reactivar":"Marcar inactiva"}</button>}
                 <button onClick={()=>{setEditPrueba(mesPrueba?JSON.parse(JSON.stringify(mesPrueba)):{...PRUEBA_DEFAULT,version:mesLabel,preguntas:[]});setAdminTab("editarMes");}} style={{background:C.primaryLight,border:"none",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,color:C.primary,fontWeight:600,marginLeft:"auto"}}>{mesPrueba?"Editar":"Configurar"}</button>
               </div>
