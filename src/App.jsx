@@ -596,7 +596,7 @@ export default function App(){
   if(loading)return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>🦙</div>;
 
   if(vista==="inicio"){
-    const mesesDisp=MESES.filter(m=>m.id==="borrador"||(!inactivasSet.has(m.id)&&pruebasMes[m.id]&&pruebasMes[m.id].preguntas?.length>0));
+    const mesesDisp=MESES.filter(m=>m.id!=="borrador"&&!inactivasSet.has(m.id)&&pruebasMes[m.id]&&pruebasMes[m.id].preguntas?.length>0);
     return(
       <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif",position:"relative"}}>
         {toast&&<ToastGuardado msg={toast}/>}
