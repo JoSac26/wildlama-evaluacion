@@ -154,7 +154,6 @@ async function ldResultados(){
         }catch{}
       });
     }
-    // Migrate legacy wl_resultados_prueba if exists
     const legacy=await ldSB("wl_resultados_prueba",null);
     if(legacy){
       let legacyObj={};
@@ -162,7 +161,6 @@ async function ldResultados(){
       else if(legacy&&typeof legacy==="object"){Object.entries(legacy).forEach(([k,v])=>{legacyObj[k]=Array.isArray(v)?v:[];});}
       Object.entries(legacyObj).forEach(([mesId,arr])=>{
         arr.forEach(res=>{
-          const rkey="wl_res_"+mesId+"__"+res.nombre.replace(/\s/g,"_")+"__"+Date.now();
           const exists=sr[mesId]&&sr[mesId].some(x=>x.nombre===res.nombre&&x.fecha===res.fecha);
           if(!exists){
             if(!sr[mesId])sr[mesId]=[];
@@ -538,6 +536,7 @@ export default function App(){
   const agregarEmb=()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...draftE(),{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbDraft(n);setNuevoEmb({nombre:"",tienda:""});marcarCambio();};
   const eliminarEmb=(idx)=>{const n=draftE().filter((_,i)=>i!==idx);setEmbDraft(n);marcarCambio();};
   const guardarEquipo=async()=>{
+    if(!equipoCambiado)return;
     setGuardandoEquipo(true);
     const t=tiendasDraft!==null?tiendasDraft:tiendas;
     const w=trabDraft!==null?trabDraft:trabajadores;
@@ -570,6 +569,29 @@ export default function App(){
     await sg(CK,nc);setContrasenas(nc);setPassForm(f=>({...f,embNueva:"",embConfirm:""}));
     setPassMsg(m=>({...m,emb:""}));showToast("Contrasena embajador actualizada");
   };
+
+  // Botón guardar equipo - siempre visible, estilo cambia según estado
+  const BtnGuardarEquipo=({style={}})=>(
+    <button
+      onClick={guardarEquipo}
+      disabled={guardandoEquipo||!equipoCambiado}
+      style={{
+        background:equipoCambiado?"#1a7a3a":C.surface2,
+        color:equipoCambiado?"#fff":C.textMuted,
+        border:"1px solid "+(equipoCambiado?"#1a7a3a":C.border),
+        borderRadius:10,
+        padding:"10px 22px",
+        cursor:equipoCambiado?"pointer":"default",
+        fontWeight:700,
+        fontSize:14,
+        boxShadow:equipoCambiado?"0 0 0 3px #1a7a3a44":"none",
+        transition:"all 0.2s",
+        ...style
+      }}
+    >
+      {guardandoEquipo?"Guardando...":equipoCambiado?"Guardar cambios":"Sin cambios"}
+    </button>
+  );
 
   if(loading)return <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40}}>🦙</div>;
 
@@ -1012,7 +1034,6 @@ export default function App(){
                     <div style={{display:"flex",gap:8,alignItems:"center"}}>
                       <div style={{background:pBg(r.puntaje),borderRadius:8,padding:"5px 12px",fontWeight:800,fontSize:16,color:pColor(r.puntaje)}}>{r.puntaje}/{r.total}</div>
                       <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;
-                      // Delete from new individual rows
                       try{
                         const rows=await fetch(SUPABASE_URL+"/rest/v1/wl_data?select=key,value",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
                         const data=await rows.json();
@@ -1054,7 +1075,7 @@ export default function App(){
                           </div>
                           <div style={{display:"flex",alignItems:"flex-start",gap:8,background:C.successBg,borderRadius:6,padding:"7px 10px"}}>
                             <span style={{fontSize:13,fontWeight:800,color:"#4caf50",flexShrink:0}}>ok</span>
-                            <div><div style={{fontSize:10,color:"#4caf50",fontWeight:700,marginBottom:2}}>CORRECTA</div><div style={{fontSize:12,color:C.text}}>{p.correcta}</div></div>
+                            <div><div style={{fontSize:10,color:"#4caf50",fontWeight:700,marginBottom:2}}>CORRECTA</div><div style={{fontSize:12,color:C.text}}>{r.respuestas[p.id]||"Sin respuesta"}</div></div>
                           </div>
                         </div>
                       </div>
@@ -1163,7 +1184,7 @@ export default function App(){
             <div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
                 <h2 style={{color:C.text,margin:0}}>Tiendas y vendedores</h2>
-                {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontWeight:700,fontSize:14,boxShadow:"0 0 0 3px #1a7a3a44"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
+                <BtnGuardarEquipo/>
               </div>
               {equipoCambiado&&<div style={{background:"#2e2200",border:"1px solid #f57f17",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:12,color:"#f57f17"}}>Hay cambios sin guardar. Presiona "Guardar cambios" para confirmar.</div>}
               <div style={{display:"flex",gap:8,marginBottom:16}}>
@@ -1200,7 +1221,7 @@ export default function App(){
                   </div>
                 );
               })}
-              {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{...bP,marginTop:12,background:"#1a7a3a"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
+              {equipoCambiado&&<BtnGuardarEquipo style={{width:"100%",marginTop:12,borderRadius:10,padding:"13px 0",fontSize:15}}/>}
             </div>
           )}
 
@@ -1208,7 +1229,7 @@ export default function App(){
             <div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,gap:12,flexWrap:"wrap"}}>
                 <h2 style={{color:C.text,margin:0}}>Embajadores</h2>
-                {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{background:"#1a7a3a",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",cursor:"pointer",fontWeight:700,fontSize:14,boxShadow:"0 0 0 3px #1a7a3a44"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
+                <BtnGuardarEquipo/>
               </div>
               {equipoCambiado&&<div style={{background:"#2e2200",border:"1px solid #f57f17",borderRadius:8,padding:"9px 14px",marginBottom:14,fontSize:12,color:"#f57f17"}}>Hay cambios sin guardar. Presiona "Guardar cambios" para confirmar.</div>}
               <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
@@ -1232,7 +1253,7 @@ export default function App(){
                   })}
                 </div>
               );})}
-              {equipoCambiado&&<button onClick={guardarEquipo} disabled={guardandoEquipo} style={{...bP,marginTop:12,background:"#1a7a3a"}}>{guardandoEquipo?"Guardando...":"Guardar cambios"}</button>}
+              {equipoCambiado&&<BtnGuardarEquipo style={{width:"100%",marginTop:12,borderRadius:10,padding:"13px 0",fontSize:15}}/>}
             </div>
           )}
 
