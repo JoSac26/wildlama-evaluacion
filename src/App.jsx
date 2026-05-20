@@ -1030,12 +1030,13 @@ export default function App(){
                 </>}
               </>)}
 
-              {mesSubTab==="res"&&(mesRes.length===0?<div style={{background:C.surface,borderRadius:12,padding:32,textAlign:"center",color:C.textDim}}>No hay evaluaciones.</div>:mesRes.map((r,i)=>(
-                <div key={i} style={{background:C.surface,borderRadius:12,padding:16,marginBottom:8,border:"1px solid "+C.border}}>
+              {mesSubTab==="res"&&(mesRes.length===0?<div style={{background:C.surface,borderRadius:12,padding:32,textAlign:"center",color:C.textDim}}>No hay evaluaciones.</div>:<>{(()=>{const conFb=mesRes.filter(r=>feedbacks[mkKey(r.nombre,r.version)]).length;const sinFb=mesRes.length-conFb;return(<div style={{display:"flex",gap:10,marginBottom:14,flexWrap:"wrap"}}><div style={{background:C.successBg,border:"1px solid #4caf50",borderRadius:8,padding:"8px 14px",fontSize:12,color:"#4caf50",fontWeight:700}}>ok Feedback completo: {conFb}</div><div style={{background:sinFb>0?C.warningBg:C.surface,border:"1px solid "+(sinFb>0?C.warning:C.border),borderRadius:8,padding:"8px 14px",fontSize:12,color:sinFb>0?C.warning:C.textMuted,fontWeight:700}}>{sinFb>0?"⏳":"—"} Pendiente: {sinFb}</div></div>);})()}{mesRes.map((r,i)=>(
+                <div key={i} style={{background:C.surface,borderRadius:12,padding:16,marginBottom:8,border:"1px solid "+(feedbacks[mkKey(r.nombre,r.version)]?C.border:"#554400")}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,flexWrap:"wrap"}}>
                     <div><div style={{fontWeight:700,fontSize:14,color:C.text}}>{r.nombre}</div><div style={{fontSize:12,color:C.textMuted}}>{r.tienda} - {r.fecha}</div></div>
-                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                       <div style={{background:pBg(r.puntaje),borderRadius:8,padding:"5px 12px",fontWeight:800,fontSize:16,color:pColor(r.puntaje)}}>{r.puntaje}/{r.total}</div>
+                      {feedbacks[mkKey(r.nombre,r.version)]?<span style={{fontSize:11,background:C.successBg,color:"#4caf50",borderRadius:6,padding:"3px 8px",fontWeight:700}}>ok Feedback</span>:<span style={{fontSize:11,background:C.warningBg,color:C.warning,borderRadius:6,padding:"3px 8px",fontWeight:700}}>⏳ Pendiente</span>}
                       <button onClick={async()=>{if(!confirm("Eliminar resultado de "+r.nombre+"?"))return;
                       try{
                         const rows=await fetch(SUPABASE_URL+"/rest/v1/wl_data?select=key,value",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
@@ -1053,7 +1054,7 @@ export default function App(){
                   {r.noPresentado&&<div style={{marginTop:6,background:C.errorBg,borderRadius:6,padding:"5px 10px",fontSize:11,color:C.error,fontWeight:700}}>No se presentó</div>}
                   {r.tiempoAgotado&&<div style={{marginTop:6,background:C.errorBg,borderRadius:6,padding:5,fontSize:11,color:C.error}}>Tiempo agotado</div>}
                 </div>
-              )))}
+              ))}</>)}
 
               {mesSubTab==="ref"&&(mesRes.length===0?<div style={{background:C.surface,borderRadius:12,padding:32,textAlign:"center",color:C.textDim}}>No hay evaluaciones.</div>:mesRes.map((r,i)=>{
                 const key=mkKey(r.nombre,r.version);
