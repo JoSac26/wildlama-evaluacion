@@ -420,7 +420,7 @@ export default function App(){
   const [fbAbierto,setFbAbierto]=useState(null);
   const [fbForm,setFbForm]=useState({teorico:false,roleplay:false,notion:false,aplicacion:false,comentario:""});
   const [guardandoFb,setGuardandoFb]=useState(false);
-  const [mesVendedor,setMesVendedor]=useState("borrador");
+  const [mesVendedor,setMesVendedor]=useState("");
   const [vendedorDetalle,setVendedorDetalle]=useState(null);
   const [toast,setToast]=useState(null);
   const [contrasenas,setContrasenas]=useState({admin:ADMIN_PASS_DEFAULT,embajador:EMB_PASS_DEFAULT});
@@ -597,6 +597,7 @@ export default function App(){
 
   if(vista==="inicio"){
     const mesesDisp=MESES.filter(m=>m.id!=="borrador"&&!inactivasSet.has(m.id)&&pruebasMes[m.id]&&pruebasMes[m.id].preguntas?.length>0);
+    if(mesesDisp.length>0&&!mesVendedor){setMesVendedor(mesesDisp[0].id);}
     return(
       <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif",position:"relative"}}>
         {toast&&<ToastGuardado msg={toast}/>}
@@ -604,6 +605,8 @@ export default function App(){
         <div style={{background:C.surface,borderRadius:20,padding:36,maxWidth:460,width:"100%",boxShadow:"0 8px 32px #0008"}}>
           <div style={{fontSize:48,textAlign:"center",marginBottom:8}}>🦙</div>
           <h1 style={{textAlign:"center",color:C.text,marginBottom:24,fontSize:22}}>Evaluacion Wild Lama</h1>
+          {mesesDisp.length===0&&<div style={{background:C.warningBg,border:"1px solid "+C.warning,borderRadius:10,padding:"12px 16px",marginBottom:20,fontSize:13,color:C.warning,textAlign:"center"}}>No hay pruebas activas en este momento.</div>}
+          {mesesDisp.length===1&&<><label style={{fontWeight:600,display:"block",marginBottom:6,color:C.textMuted,fontSize:12}}>PRUEBA</label><div style={{padding:"10px 12px",borderRadius:8,border:"1px solid "+C.border,marginBottom:16,fontSize:14,background:C.surface2,color:C.text}}>{mesesDisp[0].label}</div></>}
           {mesesDisp.length>1&&<><label style={{fontWeight:600,display:"block",marginBottom:6,color:C.textMuted,fontSize:12}}>PRUEBA</label><select value={mesVendedor} onChange={e=>setMesVendedor(e.target.value)} style={{...ss(16)}}>{mesesDisp.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></>}
           <label style={{fontWeight:600,display:"block",marginBottom:6,color:C.textMuted,fontSize:12}}>TU NOMBRE</label>
           <select value={nombre} onChange={e=>{const s=trabajadores.find(w=>w.nombre===e.target.value);setNombre(e.target.value);setTienda(s?.tienda||"");}} style={{...ss(16)}}>
