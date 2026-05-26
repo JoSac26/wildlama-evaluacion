@@ -453,6 +453,8 @@ export default function App(){
   const [guardandoEquipo,setGuardandoEquipo]=useState(false);
   const [modalCierre,setModalCierre]=useState(null);
   const [selNoPresentados,setSelNoPresentados]=useState({});
+  const [editandoTrab,setEditandoTrab]=useState(null);
+  const [editandoTrabNombre,setEditandoTrabNombre]=useState("");
 
   const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),2500);};
 
@@ -553,6 +555,7 @@ export default function App(){
   const eliminarTienda=(t)=>{if(!confirm("Eliminar "+t+"?"))return;const n=draftT().filter(x=>x!==t);const nt=draftW().filter(w=>w.tienda!==t);setTiendasDraft(n);setTrabDraft(nt);marcarCambio();};
   const agregarTrab=(tt)=>{if(!nuevoTrab.nombre.trim())return;const n=[...draftW(),{nombre:nuevoTrab.nombre.trim(),tienda:tt}];setTrabDraft(n);setNuevoTrab({nombre:"",tienda:tt});marcarCambio();};
   const eliminarTrab=(idx)=>{const cur=draftW();const n=cur.filter((_,i)=>i!==idx);setTrabDraft(n);marcarCambio();};
+  const editarTrabConfirmar=(idx)=>{if(!editandoTrabNombre.trim())return;const cur=draftW();const n=cur.map((w,i)=>i===idx?{...w,nombre:editandoTrabNombre.trim()}:w);setTrabDraft(n);setEditandoTrab(null);setEditandoTrabNombre("");marcarCambio();};
   const agregarEmb=()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...draftE(),{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbDraft(n);setNuevoEmb({nombre:"",tienda:""});marcarCambio();};
   const eliminarEmb=(idx)=>{const n=draftE().filter((_,i)=>i!==idx);setEmbDraft(n);marcarCambio();};
   const guardarEquipo=async()=>{
@@ -1231,9 +1234,22 @@ export default function App(){
                       {trabDeEstaTienda.map((w,i)=>{
                         const idxReal=draftW().findIndex(x=>x.nombre===w.nombre&&x.tienda===w.tienda);
                         return(
-                          <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 10px",background:C.surface,borderRadius:7,marginBottom:4}}>
-                            <span style={{fontSize:13,color:C.text}}>{w.nombre}</span>
-                            <button onClick={()=>eliminarTrab(idxReal)} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"2px 7px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
+                          <div key={i} style={{background:C.surface,borderRadius:7,marginBottom:4,overflow:"hidden"}}>
+                            {editandoTrab===idxReal?(
+                              <div style={{display:"flex",gap:6,padding:"6px 10px",alignItems:"center"}}>
+                                <input autoFocus value={editandoTrabNombre} onChange={e=>setEditandoTrabNombre(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")editarTrabConfirmar(idxReal);if(e.key==="Escape"){setEditandoTrab(null);setEditandoTrabNombre("");}}} style={{flex:1,padding:"5px 8px",borderRadius:6,border:"1px solid "+C.primary,fontSize:12,background:C.surface2,color:C.text}}/>
+                                <button onClick={()=>editarTrabConfirmar(idxReal)} style={{background:C.primary,color:"#fff",border:"none",borderRadius:5,padding:"3px 9px",cursor:"pointer",fontSize:12,fontWeight:700}}>ok</button>
+                                <button onClick={()=>{setEditandoTrab(null);setEditandoTrabNombre("");}} style={{background:C.surface2,color:C.textMuted,border:"none",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:11}}>✕</button>
+                              </div>
+                            ):(
+                              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 10px"}}>
+                                <span style={{fontSize:13,color:C.text}}>{w.nombre}</span>
+                                <div style={{display:"flex",gap:4}}>
+                                  <button onClick={()=>{setEditandoTrab(idxReal);setEditandoTrabNombre(w.nombre);}} style={{background:C.surface2,border:"none",borderRadius:5,padding:"2px 7px",color:C.textMuted,cursor:"pointer",fontSize:11}}>✏️</button>
+                                  <button onClick={()=>eliminarTrab(idxReal)} style={{background:C.errorBg,border:"none",borderRadius:5,padding:"2px 7px",color:C.error,cursor:"pointer",fontSize:11}}>X</button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
