@@ -555,7 +555,50 @@ export default function App(){
   const eliminarTienda=(t)=>{if(!confirm("Eliminar "+t+"?"))return;const n=draftT().filter(x=>x!==t);const nt=draftW().filter(w=>w.tienda!==t);setTiendasDraft(n);setTrabDraft(nt);marcarCambio();};
   const agregarTrab=(tt)=>{if(!nuevoTrab.nombre.trim())return;const n=[...draftW(),{nombre:nuevoTrab.nombre.trim(),tienda:tt}];setTrabDraft(n);setNuevoTrab({nombre:"",tienda:tt});marcarCambio();};
   const eliminarTrab=(idx)=>{const cur=draftW();const n=cur.filter((_,i)=>i!==idx);setTrabDraft(n);marcarCambio();};
-  const editarTrabConfirmar=(idx)=>{if(!editandoTrabNombre.trim())return;const cur=draftW();const n=cur.map((w,i)=>i===idx?{...w,nombre:editandoTrabNombre.trim()}:w);setTrabDraft(n);setEditandoTrab(null);setEditandoTrabNombre("");marcarCambio();};
+  const editarTrabConfirmar=async(idx)=>{
+    if(!editandoTrabNombre.trim())return;
+    const cur=draftW();
+    const nombreAnterior=cur[idx].nombre;
+    const nombreNuevo=editandoTrabNombre.trim();
+    if(nombreAnterior===nombreNuevo){setEditandoTrab(null);setEditandoTrabNombre("");return;}
+    // Actualizar lista de trabajadores
+    const n=cur.map((w,i)=>i===idx?{...w,nombre:nombreNuevo}:w);
+    setTrabDraft(n);setEditandoTrab(null);setEditandoTrabNombre("");marcarCambio();
+    // Actualizar resultados históricos en Supabase y en estado local
+    try{
+      const r=await fetch(SUPABASE_URL+"/rest/v1/wl_data?select=key,value",{headers:{"apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY}});
+      const data=await r.json();
+      const filas=data.filter(row=>row.key&&row.key.startsWith("wl_res_"));
+      const actualizados=[];
+      for(const fila of filas){
+        try{
+          const val=JSON.parse(fila.value);
+          if(val.nombre===nombreAnterior){
+            const valNuevo={...val,nombre:nombreNuevo};
+            await fetch(SUPABASE_URL+"/rest/v1/wl_data?key=eq."+encodeURIComponent(fila.key),{
+              method:"PATCH",
+              headers:{"Content-Type":"application/json","apikey":SUPABASE_KEY,"Authorization":"Bearer "+SUPABASE_KEY},
+              body:JSON.stringify({value:JSON.stringify(valNuevo),updated_at:new Date().toISOString()})
+            });
+            actualizados.push({key:fila.key,mesId:fila.key.split("__")[0].replace("wl_res_",""),val:valNuevo});
+          }
+        }catch{}
+      }
+      // Actualizar estado local de resultados
+      if(actualizados.length>0){
+        setResultados(prev=>{
+          const next={...prev};
+          actualizados.forEach(({mesId,val})=>{
+            if(next[mesId]){next[mesId]=next[mesId].map(res=>res.nombre===nombreAnterior?{...res,nombre:nombreNuevo}:res);}
+          });
+          return next;
+        });
+        showToast("Nombre actualizado en "+actualizados.length+" resultado(s)");
+      } else {
+        showToast("Nombre actualizado");
+      }
+    }catch{showToast("Nombre actualizado (sin resultados históricos)");}
+  };
   const agregarEmb=()=>{if(!nuevoEmb.nombre.trim()||!nuevoEmb.tienda)return alert("Completa nombre y tienda.");const n=[...draftE(),{nombre:nuevoEmb.nombre.trim(),tienda:nuevoEmb.tienda}];setEmbDraft(n);setNuevoEmb({nombre:"",tienda:""});marcarCambio();};
   const eliminarEmb=(idx)=>{const n=draftE().filter((_,i)=>i!==idx);setEmbDraft(n);marcarCambio();};
   const guardarEquipo=async()=>{
